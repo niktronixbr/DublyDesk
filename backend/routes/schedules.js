@@ -126,7 +126,7 @@ router.get('/', async (req, res) => {
     const dataResult = await pool.query(
       `SELECT * FROM schedules
        WHERE ${where}
-       ORDER BY data DESC
+       ORDER BY data ASC
        LIMIT $${values.length - 1} OFFSET $${values.length}`,
       values
     );

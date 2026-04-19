@@ -156,6 +156,12 @@ class _ScheduleListPageState extends State<ScheduleListPage> {
   }
 
   Future<void> _toggleRealizado(ScheduleModel item) async {
+    // Impede marcar como realizado antes da data/hora agendada
+    if (!item.realizado && DateTime.now().isBefore(item.data)) {
+      _snack('A escala ainda não ocorreu. Só é possível marcar como realizada após o horário agendado.');
+      return;
+    }
+
     final result = await ApiService.put(
       '/schedules/${item.id}',
       {'realizado': !item.realizado},
@@ -303,32 +309,60 @@ class _ScheduleListPageState extends State<ScheduleListPage> {
     );
   }
 
+  Widget _appBarBtn({
+    required IconData icon,
+    required String tooltip,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      child: Tooltip(
+        message: tooltip,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('DublyDesk'),
         actions: [
-          IconButton(
+          _appBarBtn(
+            icon: Icons.add,
             tooltip: 'Nova escala',
-            icon: const Icon(Icons.add),
+            color: Colors.deepPurpleAccent,
             onPressed: () => _openForm(),
           ),
-          IconButton(
+          _appBarBtn(
+            icon: Icons.attach_money,
             tooltip: 'Financeiro',
-            icon: const Icon(Icons.attach_money),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const FinancePage()),
-              );
-            },
+            color: Colors.greenAccent,
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const FinancePage()),
+            ),
           ),
-          IconButton(
+          _appBarBtn(
+            icon: Icons.logout,
             tooltip: 'Sair',
-            icon: const Icon(Icons.logout),
+            color: Colors.redAccent,
             onPressed: _logout,
           ),
+          const SizedBox(width: 4),
         ],
       ),
       body: Column(

@@ -24,6 +24,10 @@ class ScheduleCard extends StatelessWidget {
     final dataFormatada =
         DateFormat('dd/MM/yyyy HH:mm').format(schedule.data);
 
+    // Toggle só habilitado após a data/hora da escala (ou para desmarcar)
+    final podeToggle =
+        schedule.realizado || DateTime.now().isAfter(schedule.data);
+
     return Dismissible(
       key: Key('schedule_${schedule.id}'),
       direction: DismissDirection.endToStart,
@@ -62,7 +66,6 @@ class ScheduleCard extends StatelessWidget {
         onTap: onTap,
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             gradient: const LinearGradient(
@@ -79,115 +82,152 @@ class ScheduleCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '${schedule.produtora} • ${schedule.projeto}',
+              // --- Cabeçalho ---
+              Padding(
+                padding:
+                    const EdgeInsets.fromLTRB(16, 14, 8, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${schedule.produtora} • ${schedule.projeto}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Apagar',
+                      icon: const Icon(Icons.delete_outline,
+                          color: Colors.redAccent, size: 20),
+                      onPressed: onDelete,
+                    ),
+                  ],
+                ),
+              ),
+
+              // --- Corpo ---
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (schedule.diretor != null &&
+                        schedule.diretor!.isNotEmpty)
+                      Text(
+                        'Diretor: ${schedule.diretor}',
+                        style:
+                            const TextStyle(color: Colors.white70),
+                      ),
+                    if (schedule.observacao != null &&
+                        schedule.observacao!.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.notes,
+                              size: 14, color: Colors.white38),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              schedule.observacao!,
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 16,
+                      runSpacing: 6,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.calendar_today,
+                                size: 14, color: Colors.white60),
+                            const SizedBox(width: 6),
+                            Text(dataFormatada),
+                          ],
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.access_time,
+                                size: 14, color: Colors.white60),
+                            const SizedBox(width: 6),
+                            Text(
+                                '${schedule.horaInicio} - ${schedule.horaFim}'),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // --- Rodapé: toggle + valor ---
+              Container(
+                decoration: const BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: Colors.white12),
+                  ),
+                  borderRadius: BorderRadius.vertical(
+                    bottom: Radius.circular(16),
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(12, 6, 16, 6),
+                child: Row(
+                  children: [
+                    Text(
+                      'Pendente',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: schedule.realizado
+                            ? Colors.white30
+                            : Colors.orangeAccent,
+                        fontWeight: schedule.realizado
+                            ? FontWeight.normal
+                            : FontWeight.w600,
+                      ),
+                    ),
+                    Switch(
+                      value: schedule.realizado,
+                      onChanged: podeToggle
+                          ? (_) => onToggleRealizado()
+                          : null,
+                      activeColor: Colors.greenAccent,
+                      materialTapTargetSize:
+                          MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    Text(
+                      'Realizado',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: schedule.realizado
+                            ? Colors.greenAccent
+                            : Colors.white30,
+                        fontWeight: schedule.realizado
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      _moeda.format(schedule.valorTotal),
                       style: const TextStyle(
+                        color: Colors.greenAccent,
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
                     ),
-                  ),
-                  Checkbox(
-                    value: schedule.realizado,
-                    onChanged: (_) => onToggleRealizado(),
-                  ),
-                  IconButton(
-                    tooltip: 'Apagar',
-                    icon: const Icon(
-                      Icons.delete,
-                      color: Colors.redAccent,
-                    ),
-                    onPressed: onDelete,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Diretor: ${schedule.diretor ?? ''}',
-                style: const TextStyle(color: Colors.white70),
-              ),
-              if (schedule.observacao != null &&
-                  schedule.observacao!.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.notes, size: 14, color: Colors.white38),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        schedule.observacao!,
-                        style: const TextStyle(
-                          color: Colors.white54,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
-              ],
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 16,
-                runSpacing: 8,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.calendar_today,
-                          size: 14, color: Colors.white60),
-                      const SizedBox(width: 6),
-                      Text(dataFormatada),
-                    ],
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.access_time,
-                          size: 14, color: Colors.white60),
-                      const SizedBox(width: 6),
-                      Text('${schedule.horaInicio} - ${schedule.horaFim}'),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: schedule.realizado
-                          ? Colors.green.withValues(alpha: 0.15)
-                          : Colors.orange.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      schedule.realizado ? 'Realizada' : 'Pendente',
-                      style: TextStyle(
-                        color: schedule.realizado
-                            ? Colors.greenAccent
-                            : Colors.orangeAccent,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    _moeda.format(schedule.valorTotal),
-                    style: const TextStyle(
-                      color: Colors.greenAccent,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
               ),
             ],
           ),

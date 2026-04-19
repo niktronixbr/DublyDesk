@@ -98,6 +98,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
     final picked = await showTimePicker(
       context: context,
       initialTime: initialTime,
+      initialEntryMode: TimePickerEntryMode.input,
     );
 
     if (picked != null) {
