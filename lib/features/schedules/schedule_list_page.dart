@@ -6,6 +6,7 @@ import '../../core/app_navigator.dart';
 import '../../core/models/schedule_model.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/schedule_cache_service.dart';
+import '../../core/services/theme_service.dart';
 import '../../finance_page.dart';
 import '../../notification_service.dart';
 import '../../shared/widgets/cold_start_loading_widget.dart';
@@ -15,7 +16,8 @@ import 'schedule_form_page.dart';
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
 class ScheduleListPage extends StatefulWidget {
-  const ScheduleListPage({super.key});
+  final ThemeService? themeService;
+  const ScheduleListPage({super.key, this.themeService});
 
   @override
   State<ScheduleListPage> createState() => _ScheduleListPageState();
@@ -361,6 +363,15 @@ class _ScheduleListPageState extends State<ScheduleListPage> {
               MaterialPageRoute(builder: (_) => const FinancePage()),
             ),
           ),
+          if (widget.themeService != null)
+            _appBarBtn(
+              icon: widget.themeService!.isDark
+                  ? Icons.light_mode
+                  : Icons.dark_mode,
+              tooltip: widget.themeService!.isDark ? 'Tema claro' : 'Tema escuro',
+              color: Colors.amberAccent,
+              onPressed: () => widget.themeService!.toggle(),
+            ),
           _appBarBtn(
             icon: Icons.logout,
             tooltip: 'Sair',

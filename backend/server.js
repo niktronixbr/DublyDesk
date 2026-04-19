@@ -5,6 +5,8 @@ const pool = require('./db');
 const authRoutes = require('./routes/auth');
 const schedulesRoutes = require('./routes/schedules');
 const produtorasRoutes = require('./routes/produtoras');
+const projetosRoutes = require('./routes/projetos');
+const diretoresRoutes = require('./routes/diretores');
 
 const app = express();
 
@@ -66,6 +68,26 @@ async function createTables() {
     `);
 
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS projetos (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        nome TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, nome)
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS diretores (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        nome TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, nome)
+      );
+    `);
+
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS produtoras (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -115,6 +137,8 @@ app.get('/health', (req, res) => {
 app.use('/auth', authRoutes);
 app.use('/schedules', schedulesRoutes);
 app.use('/produtoras', produtorasRoutes);
+app.use('/projetos', projetosRoutes);
+app.use('/diretores', diretoresRoutes);
 
 const PORT = process.env.PORT || 3000;
 

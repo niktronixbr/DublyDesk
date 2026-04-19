@@ -39,6 +39,8 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
   DateTime? _dataSelecionada;
   bool _salvando = false;
   List<String> _produtorasSugeridas = [];
+  List<String> _projetosSugeridos = [];
+  List<String> _diretoresSugeridos = [];
   Map<String, bool> _lembretes = Map<String, bool>.from(ScheduleModel.defaultLembretes);
 
   @override
@@ -73,15 +75,25 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
   }
 
   Future<void> _carregarProdutoras() async {
-    final result = await ApiService.get('/produtoras');
-    if (result['success'] == true && result['data'] is List) {
-      setState(() {
-        _produtorasSugeridas = (result['data'] as List)
-            .map((e) => e['nome']?.toString() ?? '')
-            .where((n) => n.isNotEmpty)
-            .toList();
-      });
+    final results = await Future.wait([
+      ApiService.get('/produtoras'),
+      ApiService.get('/projetos'),
+      ApiService.get('/diretores'),
+    ]);
+
+    List<String> _nomes(Map<String, dynamic> r) {
+      if (r['success'] != true || r['data'] is! List) return [];
+      return (r['data'] as List)
+          .map((e) => e['nome']?.toString() ?? '')
+          .where((n) => n.isNotEmpty)
+          .toList();
     }
+
+    setState(() {
+      _produtorasSugeridas = _nomes(results[0]);
+      _projetosSugeridos = _nomes(results[1]);
+      _diretoresSugeridos = _nomes(results[2]);
+    });
   }
 
   double _parseValor(String valor) {
@@ -165,11 +177,12 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
     return false;
   }
 
-  Future<void> _garantirProdutora(String nome) async {
-    final nomeNormalizado = nome.trim();
-    if (nomeNormalizado.isEmpty) return;
-    if (!_produtorasSugeridas.contains(nomeNormalizado)) {
-      await ApiService.post('/produtoras', {'nome': nomeNormalizado});
+  Future<void> _garantirFavorito(
+      String endpoint, List<String> lista, String nome) async {
+    final n = nome.trim();
+    if (n.isEmpty) return;
+    if (!lista.contains(n)) {
+      await ApiService.post(endpoint, {'nome': n});
     }
   }
 
@@ -227,7 +240,12 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
         return;
       }
 
-      await _garantirProdutora(_produtora.text);
+      await Future.wait([
+        _garantirFavorito('/produtoras', _produtorasSugeridas, _produtora.text),
+        _garantirFavorito('/projetos', _projetosSugeridos, _projeto.text),
+        if (_diretor.text.trim().isNotEmpty)
+          _garantirFavorito('/diretores', _diretoresSugeridos, _diretor.text),
+      ]);
 
       final observacaoTexto = _observacao.text.trim();
       final body = {
@@ -302,6 +320,58 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
     } finally {
       if (mounted) setState(() => _salvando = false);
     }
+  }
+
+  Widget _autocomplete({
+    required String label,
+    required TextEditingController controller,
+    required List<String> sugestoes,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Autocomplete<String>(
+        initialValue: TextEditingValue(text: controller.text),
+        optionsBuilder: (v) {
+          final input = v.text.toLowerCase();
+          if (input.isEmpty) return sugestoes;
+          return sugestoes.where((s) => s.toLowerCase().contains(input));
+        },
+        onSelected: (v) => controller.text = v,
+        fieldViewBuilder: (context, ctrl, focus, onSubmit) {
+          controller.addListener(() {
+            if (ctrl.text != controller.text) ctrl.text = controller.text;
+          });
+          return TextField(
+            controller: ctrl,
+            focusNode: focus,
+            onChanged: (v) => controller.text = v,
+            decoration: InputDecoration(labelText: label),
+          );
+        },
+        optionsViewBuilder: (context, onSelected, options) => Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            color: const Color(0xFF1E1E2E),
+            borderRadius: BorderRadius.circular(8),
+            elevation: 4,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 180),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (_, i) {
+                  final opt = options.elementAt(i);
+                  return ListTile(
+                    title: Text(opt),
+                    onTap: () => onSelected(opt),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _campo(
@@ -385,8 +455,16 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
                 },
               ),
             ),
-            _campo('Projeto *', _projeto),
-            _campo('Diretor', _diretor),
+            _autocomplete(
+              label: 'Projeto *',
+              controller: _projeto,
+              sugestoes: _projetosSugeridos,
+            ),
+            _autocomplete(
+              label: 'Diretor',
+              controller: _diretor,
+              sugestoes: _diretoresSugeridos,
+            ),
             ElevatedButton(
               onPressed: _selecionarData,
               child: Text(
