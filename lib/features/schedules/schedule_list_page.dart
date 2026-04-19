@@ -151,7 +151,12 @@ class _ScheduleListPageState extends State<ScheduleListPage> {
   void _openForm({ScheduleModel? item}) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => ScheduleFormPage(item: item)),
+      MaterialPageRoute(
+        builder: (_) => ScheduleFormPage(
+          item: item,
+          escalasExistentes: _schedules,
+        ),
+      ),
     ).then((_) => _fetchSchedules());
   }
 

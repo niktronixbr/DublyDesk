@@ -16,6 +16,7 @@ class _FinancePageState extends State<FinancePage> {
   Map<String, dynamic>? _summary;
   bool _carregando = false;
   int _mesSelecionado = DateTime.now().month;
+  int _anoSelecionado = DateTime.now().year;
 
   final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
@@ -60,8 +61,20 @@ class _FinancePageState extends State<FinancePage> {
   List<Map<String, dynamic>> get _realizadasDoMes {
     return _schedules.where((item) {
       final data = DateTime.parse(item['data'].toString());
-      return data.month == _mesSelecionado && item['realizado'] == true;
+      return data.month == _mesSelecionado &&
+          data.year == _anoSelecionado &&
+          item['realizado'] == true;
     }).toList();
+  }
+
+  List<int> get _anosDisponiveis {
+    final anos = _schedules
+        .map((s) => DateTime.parse(s['data'].toString()).year)
+        .toSet()
+        .toList()
+      ..sort();
+    if (!anos.contains(DateTime.now().year)) anos.add(DateTime.now().year);
+    return anos;
   }
 
   double get _totalMes {
@@ -353,7 +366,7 @@ class _FinancePageState extends State<FinancePage> {
             _summaryCards(),
             const SizedBox(height: 24),
 
-            // --- Filtro por mês ---
+            // --- Filtro por mês e ano ---
             const Text(
               'Detalhes por mês',
               style: TextStyle(
@@ -362,26 +375,57 @@ class _FinancePageState extends State<FinancePage> {
                   color: Colors.white70),
             ),
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E1E2E),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: DropdownButton<int>(
-                value: _mesSelecionado,
-                isExpanded: true,
-                dropdownColor: const Color(0xFF1E1E2E),
-                underline: const SizedBox(),
-                items: List.generate(12, (i) => i + 1)
-                    .map((m) => DropdownMenuItem(
-                        value: m, child: Text(_nomeMes(m))))
-                    .toList(),
-                onChanged: (v) {
-                  if (v == null) return;
-                  setState(() => _mesSelecionado = v);
-                },
-              ),
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1E2E),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: DropdownButton<int>(
+                      value: _mesSelecionado,
+                      isExpanded: true,
+                      dropdownColor: const Color(0xFF1E1E2E),
+                      underline: const SizedBox(),
+                      items: List.generate(12, (i) => i + 1)
+                          .map((m) => DropdownMenuItem(
+                              value: m, child: Text(_nomeMes(m))))
+                          .toList(),
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setState(() => _mesSelecionado = v);
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1E2E),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: DropdownButton<int>(
+                      value: _anoSelecionado,
+                      isExpanded: true,
+                      dropdownColor: const Color(0xFF1E1E2E),
+                      underline: const SizedBox(),
+                      items: _anosDisponiveis
+                          .map((a) => DropdownMenuItem(
+                              value: a, child: Text(a.toString())))
+                          .toList(),
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setState(() => _anoSelecionado = v);
+                      },
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
 
@@ -400,7 +444,7 @@ class _FinancePageState extends State<FinancePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Total realizado em ${_nomeMes(_mesSelecionado)}',
+                      'Total realizado em ${_nomeMes(_mesSelecionado)} $_anoSelecionado',
                       style: const TextStyle(color: Colors.black87),
                     ),
                     const SizedBox(height: 8),

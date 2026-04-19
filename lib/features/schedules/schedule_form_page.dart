@@ -15,8 +15,13 @@ const _labelLembretes = {
 
 class ScheduleFormPage extends StatefulWidget {
   final ScheduleModel? item;
+  final List<ScheduleModel> escalasExistentes;
 
-  const ScheduleFormPage({super.key, this.item});
+  const ScheduleFormPage({
+    super.key,
+    this.item,
+    this.escalasExistentes = const [],
+  });
 
   @override
   State<ScheduleFormPage> createState() => _ScheduleFormPageState();
@@ -137,6 +142,29 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
     return true;
   }
 
+  bool _temConflito(DateTime inicio, DateTime fim) {
+    for (final escala in widget.escalasExistentes) {
+      // Ignora a própria escala ao editar
+      if (widget.item != null && escala.id == widget.item!.id) continue;
+
+      // Compara apenas escalas do mesmo dia
+      if (escala.data.year != inicio.year ||
+          escala.data.month != inicio.month ||
+          escala.data.day != inicio.day) continue;
+
+      final partes = escala.horaInicio.split(':');
+      final partesF = escala.horaFim.split(':');
+      final eInicio = DateTime(inicio.year, inicio.month, inicio.day,
+          int.parse(partes[0]), int.parse(partes[1]));
+      final eFim = DateTime(inicio.year, inicio.month, inicio.day,
+          int.parse(partesF[0]), int.parse(partesF[1]));
+
+      // Sobreposição: A < D && C < B
+      if (inicio.isBefore(eFim) && eInicio.isBefore(fim)) return true;
+    }
+    return false;
+  }
+
   Future<void> _garantirProdutora(String nome) async {
     final nomeNormalizado = nome.trim();
     if (nomeNormalizado.isEmpty) return;
@@ -185,6 +213,19 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
 
       final valorHoraDouble = _parseValor(_valorHora.text);
       final valorTotal = (diferencaMinutos / 60.0) * valorHoraDouble;
+
+      // Verifica conflito de horário com escalas existentes
+      if (_temConflito(inicioDate, fimDate)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Período indisponível! Já existe uma escala nesse horário.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        setState(() => _salvando = false);
+        return;
+      }
 
       await _garantirProdutora(_produtora.text);
 
