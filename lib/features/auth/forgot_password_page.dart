@@ -60,11 +60,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Recuperar senha')),
-      body: Padding(
+      body: ListView(
         padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+        children: [
             const SizedBox(height: 24),
             Container(
               padding: const EdgeInsets.all(20),
@@ -127,8 +125,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               },
               child: const Text('Já tenho um código'),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
