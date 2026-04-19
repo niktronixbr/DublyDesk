@@ -1,0 +1,286 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
+import '../../core/models/schedule_model.dart';
+import '../../core/services/api_service.dart';
+import '../../notification_service.dart';
+
+class ScheduleFormPage extends StatefulWidget {
+  final ScheduleModel? item;
+
+  const ScheduleFormPage({super.key, this.item});
+
+  @override
+  State<ScheduleFormPage> createState() => _ScheduleFormPageState();
+}
+
+class _ScheduleFormPageState extends State<ScheduleFormPage> {
+  final _projeto = TextEditingController();
+  final _produtora = TextEditingController();
+  final _diretor = TextEditingController();
+  final _valorHora = TextEditingController();
+  final _horaInicio = TextEditingController();
+  final _horaFim = TextEditingController();
+
+  DateTime? _dataSelecionada;
+  bool _salvando = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (widget.item != null) {
+      final item = widget.item!;
+      _projeto.text = item.projeto;
+      _produtora.text = item.produtora;
+      _diretor.text = item.diretor ?? '';
+      _valorHora.text = item.valorHora.toString().replaceAll('.', ',');
+      _horaInicio.text = item.horaInicio;
+      _horaFim.text = item.horaFim;
+      _dataSelecionada = item.data;
+    }
+  }
+
+  @override
+  void dispose() {
+    _projeto.dispose();
+    _produtora.dispose();
+    _diretor.dispose();
+    _valorHora.dispose();
+    _horaInicio.dispose();
+    _horaFim.dispose();
+    super.dispose();
+  }
+
+  double _parseValor(String valor) {
+    return double.parse(valor.replaceAll('.', '').replaceAll(',', '.'));
+  }
+
+  Future<void> _selecionarHora(TextEditingController controller) async {
+    TimeOfDay initialTime = TimeOfDay.now();
+
+    if (controller.text.contains(':')) {
+      final partes = controller.text.split(':');
+      if (partes.length == 2) {
+        final h = int.tryParse(partes[0]) ?? initialTime.hour;
+        final m = int.tryParse(partes[1]) ?? initialTime.minute;
+        initialTime = TimeOfDay(hour: h, minute: m);
+      }
+    }
+
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+    );
+
+    if (picked != null) {
+      controller.text =
+          '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+    }
+  }
+
+  Future<void> _selecionarData() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _dataSelecionada ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+
+    if (picked != null) {
+      setState(() => _dataSelecionada = picked);
+    }
+  }
+
+  bool _validarCampos() {
+    if (_produtora.text.trim().isEmpty ||
+        _projeto.text.trim().isEmpty ||
+        _horaInicio.text.trim().isEmpty ||
+        _horaFim.text.trim().isEmpty ||
+        _valorHora.text.trim().isEmpty ||
+        _dataSelecionada == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Preencha todos os campos obrigatórios.'),
+        ),
+      );
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _salvar() async {
+    if (!_validarCampos()) return;
+
+    setState(() => _salvando = true);
+
+    try {
+      final inicio = _horaInicio.text.split(':');
+      final fim = _horaFim.text.split(':');
+
+      final inicioDate = DateTime(
+        _dataSelecionada!.year,
+        _dataSelecionada!.month,
+        _dataSelecionada!.day,
+        int.parse(inicio[0]),
+        int.parse(inicio[1]),
+      );
+
+      final fimDate = DateTime(
+        _dataSelecionada!.year,
+        _dataSelecionada!.month,
+        _dataSelecionada!.day,
+        int.parse(fim[0]),
+        int.parse(fim[1]),
+      );
+
+      final diferencaMinutos = fimDate.difference(inicioDate).inMinutes;
+
+      if (diferencaMinutos <= 0) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Hora fim deve ser maior que hora início.'),
+          ),
+        );
+        setState(() => _salvando = false);
+        return;
+      }
+
+      final valorHoraDouble = _parseValor(_valorHora.text);
+      final valorTotal = (diferencaMinutos / 60.0) * valorHoraDouble;
+
+      final body = {
+        'projeto': _projeto.text.trim(),
+        'produtora': _produtora.text.trim(),
+        'diretor': _diretor.text.trim(),
+        'data': inicioDate.toIso8601String(),
+        'hora_inicio': _horaInicio.text.trim(),
+        'hora_fim': _horaFim.text.trim(),
+        'valor_hora': valorHoraDouble,
+        'valor_total': valorTotal,
+        'realizado': widget.item?.realizado ?? false,
+      };
+
+      final result = widget.item == null
+          ? await ApiService.post('/schedules', body)
+          : await ApiService.put('/schedules/${widget.item!.id}', body);
+
+      if (!mounted) return;
+
+      if (result['success'] != true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result['error'] ?? 'Não foi possível salvar a escala.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      final responseData = result['data'];
+      final int id = widget.item == null
+          ? ((responseData is Map ? responseData['id'] as num? : null)
+                  ?.toInt() ??
+              0)
+          : widget.item!.id;
+
+      try {
+        if (id != 0) {
+          await NotificationService.scheduleDefaultAgendaNotifications(
+            baseId: id,
+            corpo:
+                '${_produtora.text.trim()} • ${_projeto.text.trim()} às ${_horaInicio.text.trim()}',
+            dataHora: inicioDate,
+          );
+        }
+      } catch (e) {
+        debugPrint('Erro ao agendar notificações: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Escala salva, mas não foi possível agendar as notificações.',
+              ),
+            ),
+          );
+        }
+      }
+
+      if (!mounted) return;
+      Navigator.pop(context);
+    } catch (e) {
+      debugPrint('Erro ao salvar escala: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao salvar a escala: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _salvando = false);
+    }
+  }
+
+  Widget _campo(
+    String label,
+    TextEditingController c, {
+    VoidCallback? onTap,
+    String? hint,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        controller: c,
+        readOnly: onTap != null,
+        onTap: onTap,
+        decoration: InputDecoration(labelText: label, hintText: hint),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final titulo = widget.item == null ? 'Nova Escala' : 'Editar Escala';
+
+    return Scaffold(
+      appBar: AppBar(title: Text(titulo)),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: ListView(
+          children: [
+            _campo('Produtora', _produtora),
+            _campo('Projeto', _projeto),
+            _campo('Diretor', _diretor),
+            ElevatedButton(
+              onPressed: _selecionarData,
+              child: Text(
+                _dataSelecionada == null
+                    ? 'Selecionar Data'
+                    : DateFormat('dd/MM/yyyy').format(_dataSelecionada!),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _campo(
+              'Hora início',
+              _horaInicio,
+              onTap: () => _selecionarHora(_horaInicio),
+              hint: 'HH:mm',
+            ),
+            _campo(
+              'Hora fim',
+              _horaFim,
+              onTap: () => _selecionarHora(_horaFim),
+              hint: 'HH:mm',
+            ),
+            _campo('Valor/hora', _valorHora, hint: 'Ex: 100,50'),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _salvando ? null : _salvar,
+              child: Text(_salvando ? 'Salvando...' : 'Salvar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
