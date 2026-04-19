@@ -165,43 +165,64 @@ class NotificationService {
     );
   }
 
-  /// Agenda 3 lembretes:
-  /// - 30 minutos antes
-  /// - 5 minutos antes
-  /// - no horário exato
+  /// Agenda lembretes conforme seleção do usuário.
+  /// Offsets: 0 = 60min, 1 = 30min, 2 = 5min, 3 = exato
   static Future<void> scheduleDefaultAgendaNotifications({
     required int baseId,
     required String corpo,
     required DateTime dataHora,
+    Map<String, bool>? lembretes,
   }) async {
     await init();
-
     await cancelAgendaNotifications(baseId);
 
-    await scheduleAgendaNotification(
-      id: _notificationId(baseId, 1),
-      titulo: 'Escala em 30 min',
-      corpo: corpo,
-      dataHora: dataHora.subtract(const Duration(minutes: 30)),
-    );
+    final l = lembretes ?? {
+      '60min': false,
+      '30min': true,
+      '5min': true,
+      'exato': true,
+    };
 
-    await scheduleAgendaNotification(
-      id: _notificationId(baseId, 2),
-      titulo: 'Escala em 5 min',
-      corpo: corpo,
-      dataHora: dataHora.subtract(const Duration(minutes: 5)),
-    );
+    if (l['60min'] == true) {
+      await scheduleAgendaNotification(
+        id: _notificationId(baseId, 0),
+        titulo: 'Escala em 1 hora',
+        corpo: corpo,
+        dataHora: dataHora.subtract(const Duration(minutes: 60)),
+      );
+    }
 
-    await scheduleAgendaNotification(
-      id: _notificationId(baseId, 3),
-      titulo: 'Escala agora',
-      corpo: corpo,
-      dataHora: dataHora,
-    );
+    if (l['30min'] != false) {
+      await scheduleAgendaNotification(
+        id: _notificationId(baseId, 1),
+        titulo: 'Escala em 30 min',
+        corpo: corpo,
+        dataHora: dataHora.subtract(const Duration(minutes: 30)),
+      );
+    }
+
+    if (l['5min'] != false) {
+      await scheduleAgendaNotification(
+        id: _notificationId(baseId, 2),
+        titulo: 'Escala em 5 min',
+        corpo: corpo,
+        dataHora: dataHora.subtract(const Duration(minutes: 5)),
+      );
+    }
+
+    if (l['exato'] != false) {
+      await scheduleAgendaNotification(
+        id: _notificationId(baseId, 3),
+        titulo: 'Escala agora',
+        corpo: corpo,
+        dataHora: dataHora,
+      );
+    }
   }
 
   static Future<void> cancelAgendaNotifications(int baseId) async {
     await init();
+    await _notifications.cancel(id: _notificationId(baseId, 0));
     await _notifications.cancel(id: _notificationId(baseId, 1));
     await _notifications.cancel(id: _notificationId(baseId, 2));
     await _notifications.cancel(id: _notificationId(baseId, 3));

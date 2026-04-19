@@ -5,6 +5,14 @@ import '../../core/models/schedule_model.dart';
 import '../../core/services/api_service.dart';
 import '../../notification_service.dart';
 
+// Rótulos exibidos para cada chave de lembrete
+const _labelLembretes = {
+  '60min': '1 hora antes',
+  '30min': '30 minutos antes',
+  '5min': '5 minutos antes',
+  'exato': 'No horário exato',
+};
+
 class ScheduleFormPage extends StatefulWidget {
   final ScheduleModel? item;
 
@@ -26,6 +34,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
   DateTime? _dataSelecionada;
   bool _salvando = false;
   List<String> _produtorasSugeridas = [];
+  Map<String, bool> _lembretes = Map<String, bool>.from(ScheduleModel.defaultLembretes);
 
   @override
   void initState() {
@@ -42,6 +51,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
       _horaFim.text = item.horaFim;
       _observacao.text = item.observacao ?? '';
       _dataSelecionada = item.data;
+      _lembretes = Map<String, bool>.from(item.lembretes);
     }
   }
 
@@ -189,6 +199,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
         'valor_total': valorTotal,
         'realizado': widget.item?.realizado ?? false,
         if (observacaoTexto.isNotEmpty) 'observacao': observacaoTexto,
+        'lembretes': _lembretes,
       };
 
       final result = widget.item == null
@@ -222,6 +233,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
             corpo:
                 '${_produtora.text.trim()} • ${_projeto.text.trim()} às ${_horaInicio.text.trim()}',
             dataHora: inicioDate,
+            lembretes: _lembretes,
           );
         }
       } catch (e) {
@@ -357,6 +369,47 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
             _campo('Valor/hora *', _valorHora, hint: 'Ex: 100,50'),
             _campo('Observações', _observacao,
                 hint: 'Ex: levar texto impresso', maxLines: 3),
+            const SizedBox(height: 20),
+
+            // --- Seção Lembretes ---
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1E2E),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.notifications_outlined,
+                          size: 16, color: Colors.white70),
+                      SizedBox(width: 8),
+                      Text(
+                        'Lembretes',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ..._labelLembretes.entries.map(
+                    (entry) => CheckboxListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(entry.value,
+                          style: const TextStyle(fontSize: 14)),
+                      value: _lembretes[entry.key] ?? false,
+                      onChanged: (v) => setState(
+                          () => _lembretes[entry.key] = v ?? false),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _salvando ? null : _salvar,

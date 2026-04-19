@@ -10,7 +10,15 @@ class ScheduleModel {
   final double valorTotal;
   final bool realizado;
   final String? observacao;
+  final Map<String, bool> lembretes;
   final DateTime createdAt;
+
+  static const defaultLembretes = {
+    '60min': false,
+    '30min': true,
+    '5min': true,
+    'exato': true,
+  };
 
   const ScheduleModel({
     required this.id,
@@ -24,10 +32,22 @@ class ScheduleModel {
     required this.valorTotal,
     required this.realizado,
     this.observacao,
+    this.lembretes = defaultLembretes,
     required this.createdAt,
   });
 
   factory ScheduleModel.fromJson(Map<String, dynamic> json) {
+    Map<String, bool> lembretes = Map<String, bool>.from(defaultLembretes);
+    if (json['lembretes'] is Map) {
+      final raw = json['lembretes'] as Map;
+      lembretes = {
+        '60min': raw['60min'] == true,
+        '30min': raw['30min'] != false,
+        '5min': raw['5min'] != false,
+        'exato': raw['exato'] != false,
+      };
+    }
+
     return ScheduleModel(
       id: (json['id'] as num).toInt(),
       projeto: json['projeto']?.toString() ?? '',
@@ -40,6 +60,7 @@ class ScheduleModel {
       valorTotal: double.tryParse(json['valor_total'].toString()) ?? 0,
       realizado: json['realizado'] == true,
       observacao: json['observacao']?.toString(),
+      lembretes: lembretes,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'].toString())
           : DateTime.now(),
@@ -57,6 +78,7 @@ class ScheduleModel {
         'valor_total': valorTotal,
         'realizado': realizado,
         'observacao': observacao,
+        'lembretes': lembretes,
       };
 
   ScheduleModel copyWith({bool? realizado}) => ScheduleModel(
@@ -71,6 +93,7 @@ class ScheduleModel {
         valorTotal: valorTotal,
         realizado: realizado ?? this.realizado,
         observacao: observacao,
+        lembretes: lembretes,
         createdAt: createdAt,
       );
 }

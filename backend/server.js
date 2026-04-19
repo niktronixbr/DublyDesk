@@ -96,6 +96,16 @@ async function createTables() {
   } catch (err) {
     console.error('❌ Erro na migration observacao:', err);
   }
+
+  try {
+    await pool.query(`
+      ALTER TABLE schedules
+        ADD COLUMN IF NOT EXISTS lembretes JSONB
+        DEFAULT '{"60min":false,"30min":true,"5min":true,"exato":true}'
+    `);
+  } catch (err) {
+    console.error('❌ Erro na migration lembretes:', err);
+  }
 }
 
 app.get('/health', (req, res) => {
