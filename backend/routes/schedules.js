@@ -148,20 +148,20 @@ router.post('/', scheduleValidation, validateRequest, async (req, res) => {
   const {
     projeto, produtora, diretor,
     data, hora_inicio, hora_fim,
-    valor_hora, valor_total, realizado,
+    valor_hora, valor_total, realizado, observacao,
   } = req.body;
 
   try {
     const result = await pool.query(
       `INSERT INTO schedules
        (user_id, projeto, produtora, diretor, data, hora_inicio, hora_fim,
-        valor_hora, valor_total, realizado)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        valor_hora, valor_total, realizado, observacao)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        RETURNING *`,
       [
         req.user.id, projeto, produtora, diretor,
         data, hora_inicio, hora_fim,
-        valor_hora, valor_total, realizado ?? false,
+        valor_hora, valor_total, realizado ?? false, observacao ?? null,
       ]
     );
 
@@ -179,7 +179,7 @@ router.put('/:id', scheduleUpdateValidation, validateRequest, async (req, res) =
   try {
     const camposPermitidos = [
       'projeto', 'produtora', 'diretor', 'data',
-      'hora_inicio', 'hora_fim', 'valor_hora', 'valor_total', 'realizado',
+      'hora_inicio', 'hora_fim', 'valor_hora', 'valor_total', 'realizado', 'observacao',
     ];
 
     const entradas = Object.entries(req.body).filter(([chave]) =>

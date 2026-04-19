@@ -9,6 +9,7 @@ class ScheduleModel {
   final double valorHora;
   final double valorTotal;
   final bool realizado;
+  final String? observacao;
   final DateTime createdAt;
 
   const ScheduleModel({
@@ -22,6 +23,7 @@ class ScheduleModel {
     required this.valorHora,
     required this.valorTotal,
     required this.realizado,
+    this.observacao,
     required this.createdAt,
   });
 
@@ -37,6 +39,7 @@ class ScheduleModel {
       valorHora: double.tryParse(json['valor_hora'].toString()) ?? 0,
       valorTotal: double.tryParse(json['valor_total'].toString()) ?? 0,
       realizado: json['realizado'] == true,
+      observacao: json['observacao']?.toString(),
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'].toString())
           : DateTime.now(),
@@ -53,6 +56,7 @@ class ScheduleModel {
         'valor_hora': valorHora,
         'valor_total': valorTotal,
         'realizado': realizado,
+        'observacao': observacao,
       };
 
   ScheduleModel copyWith({bool? realizado}) => ScheduleModel(
@@ -66,6 +70,7 @@ class ScheduleModel {
         valorHora: valorHora,
         valorTotal: valorTotal,
         realizado: realizado ?? this.realizado,
+        observacao: observacao,
         createdAt: createdAt,
       );
 }

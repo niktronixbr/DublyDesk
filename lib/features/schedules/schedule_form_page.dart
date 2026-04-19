@@ -21,13 +21,16 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
   final _valorHora = TextEditingController();
   final _horaInicio = TextEditingController();
   final _horaFim = TextEditingController();
+  final _observacao = TextEditingController();
 
   DateTime? _dataSelecionada;
   bool _salvando = false;
+  List<String> _produtorasSugeridas = [];
 
   @override
   void initState() {
     super.initState();
+    _carregarProdutoras();
 
     if (widget.item != null) {
       final item = widget.item!;
@@ -37,6 +40,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
       _valorHora.text = item.valorHora.toString().replaceAll('.', ',');
       _horaInicio.text = item.horaInicio;
       _horaFim.text = item.horaFim;
+      _observacao.text = item.observacao ?? '';
       _dataSelecionada = item.data;
     }
   }
@@ -49,7 +53,20 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
     _valorHora.dispose();
     _horaInicio.dispose();
     _horaFim.dispose();
+    _observacao.dispose();
     super.dispose();
+  }
+
+  Future<void> _carregarProdutoras() async {
+    final result = await ApiService.get('/produtoras');
+    if (result['success'] == true && result['data'] is List) {
+      setState(() {
+        _produtorasSugeridas = (result['data'] as List)
+            .map((e) => e['nome']?.toString() ?? '')
+            .where((n) => n.isNotEmpty)
+            .toList();
+      });
+    }
   }
 
   double _parseValor(String valor) {
@@ -109,6 +126,14 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
     return true;
   }
 
+  Future<void> _garantirProdutora(String nome) async {
+    final nomeNormalizado = nome.trim();
+    if (nomeNormalizado.isEmpty) return;
+    if (!_produtorasSugeridas.contains(nomeNormalizado)) {
+      await ApiService.post('/produtoras', {'nome': nomeNormalizado});
+    }
+  }
+
   Future<void> _salvar() async {
     if (!_validarCampos()) return;
 
@@ -150,6 +175,9 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
       final valorHoraDouble = _parseValor(_valorHora.text);
       final valorTotal = (diferencaMinutos / 60.0) * valorHoraDouble;
 
+      await _garantirProdutora(_produtora.text);
+
+      final observacaoTexto = _observacao.text.trim();
       final body = {
         'projeto': _projeto.text.trim(),
         'produtora': _produtora.text.trim(),
@@ -160,6 +188,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
         'valor_hora': valorHoraDouble,
         'valor_total': valorTotal,
         'realizado': widget.item?.realizado ?? false,
+        if (observacaoTexto.isNotEmpty) 'observacao': observacaoTexto,
       };
 
       final result = widget.item == null
@@ -226,6 +255,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
     TextEditingController c, {
     VoidCallback? onTap,
     String? hint,
+    int maxLines = 1,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -233,6 +263,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
         controller: c,
         readOnly: onTap != null,
         onTap: onTap,
+        maxLines: maxLines,
         decoration: InputDecoration(labelText: label, hintText: hint),
       ),
     );
@@ -248,8 +279,59 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
         padding: const EdgeInsets.all(16),
         child: ListView(
           children: [
-            _campo('Produtora', _produtora),
-            _campo('Projeto', _projeto),
+            // Campo Produtora com Autocomplete
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Autocomplete<String>(
+                initialValue: TextEditingValue(text: _produtora.text),
+                optionsBuilder: (textEditingValue) {
+                  final input = textEditingValue.text.toLowerCase();
+                  if (input.isEmpty) return _produtorasSugeridas;
+                  return _produtorasSugeridas
+                      .where((p) => p.toLowerCase().contains(input))
+                      .toList();
+                },
+                onSelected: (value) => _produtora.text = value,
+                fieldViewBuilder: (context, controller, focusNode, onSubmit) {
+                  _produtora.addListener(() {
+                    if (controller.text != _produtora.text) {
+                      controller.text = _produtora.text;
+                    }
+                  });
+                  return TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    onChanged: (v) => _produtora.text = v,
+                    decoration: const InputDecoration(labelText: 'Produtora *'),
+                  );
+                },
+                optionsViewBuilder: (context, onSelected, options) {
+                  return Align(
+                    alignment: Alignment.topLeft,
+                    child: Material(
+                      color: const Color(0xFF1E1E2E),
+                      borderRadius: BorderRadius.circular(8),
+                      elevation: 4,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 200),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: options.length,
+                          itemBuilder: (context, i) {
+                            final option = options.elementAt(i);
+                            return ListTile(
+                              title: Text(option),
+                              onTap: () => onSelected(option),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            _campo('Projeto *', _projeto),
             _campo('Diretor', _diretor),
             ElevatedButton(
               onPressed: _selecionarData,
@@ -261,18 +343,20 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
             ),
             const SizedBox(height: 12),
             _campo(
-              'Hora início',
+              'Hora início *',
               _horaInicio,
               onTap: () => _selecionarHora(_horaInicio),
               hint: 'HH:mm',
             ),
             _campo(
-              'Hora fim',
+              'Hora fim *',
               _horaFim,
               onTap: () => _selecionarHora(_horaFim),
               hint: 'HH:mm',
             ),
-            _campo('Valor/hora', _valorHora, hint: 'Ex: 100,50'),
+            _campo('Valor/hora *', _valorHora, hint: 'Ex: 100,50'),
+            _campo('Observações', _observacao,
+                hint: 'Ex: levar texto impresso', maxLines: 3),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _salvando ? null : _salvar,

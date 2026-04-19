@@ -109,6 +109,26 @@ class ScheduleCard extends StatelessWidget {
                 'Diretor: ${schedule.diretor ?? ''}',
                 style: const TextStyle(color: Colors.white70),
               ),
+              if (schedule.observacao != null &&
+                  schedule.observacao!.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.notes, size: 14, color: Colors.white38),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        schedule.observacao!,
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 10),
               Wrap(
                 spacing: 16,

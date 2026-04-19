@@ -4,6 +4,7 @@ const pool = require('./db');
 
 const authRoutes = require('./routes/auth');
 const schedulesRoutes = require('./routes/schedules');
+const produtorasRoutes = require('./routes/produtoras');
 
 const app = express();
 
@@ -64,9 +65,25 @@ async function createTables() {
       ON schedules(user_id, produtora);
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS produtoras (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        nome TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, nome)
+      );
+    `);
+
     console.log('✅ Tabelas e índices garantidos');
   } catch (err) {
     console.error('❌ Erro ao criar tabelas:', err);
+  }
+
+  try {
+    await pool.query(`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS observacao TEXT`);
+  } catch (err) {
+    console.error('❌ Erro na migration observacao:', err);
   }
 }
 
@@ -76,6 +93,7 @@ app.get('/health', (req, res) => {
 
 app.use('/auth', authRoutes);
 app.use('/schedules', schedulesRoutes);
+app.use('/produtoras', produtorasRoutes);
 
 const PORT = process.env.PORT || 3000;
 
