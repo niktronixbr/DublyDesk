@@ -1,6 +1,8 @@
+const crypto = require('crypto');
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 const rateLimit = require('express-rate-limit');
 const pool = require('../db');
 
@@ -94,6 +96,127 @@ router.post('/login', authLimiter, async (req, res) => {
   } catch (err) {
     console.error('POST /auth/login error:', err);
     res.status(500).json({ error: 'Erro ao fazer login' });
+  }
+});
+
+const forgotLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas tentativas. Tente novamente em 15 minutos.' },
+});
+
+// POST /auth/forgot-password
+router.post('/forgot-password', forgotLimiter, async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: 'Informe o email' });
+  }
+
+  try {
+    const result = await pool.query(
+      'SELECT id FROM users WHERE email = $1',
+      [email.trim().toLowerCase()]
+    );
+
+    // Resposta genérica para não revelar se o email existe
+    if (result.rowCount === 0) {
+      return res.json({
+        message: 'Se o email estiver cadastrado, você receberá o código.',
+      });
+    }
+
+    const userId = result.rows[0].id;
+
+    // Código de 6 dígitos, válido por 1 hora
+    const token = crypto.randomInt(100000, 999999).toString();
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    // Invalida tokens anteriores do usuário
+    await pool.query('DELETE FROM password_resets WHERE user_id = $1', [userId]);
+
+    await pool.query(
+      'INSERT INTO password_resets (user_id, token, expires_at) VALUES ($1, $2, $3)',
+      [userId, token, expiresAt]
+    );
+
+    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: false,
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      });
+
+      await transporter.sendMail({
+        from: `"DublyDesk" <${process.env.SMTP_USER}>`,
+        to: email,
+        subject: 'Redefinição de senha — DublyDesk',
+        text: `Seu código de redefinição de senha é: ${token}\n\nEsse código é válido por 1 hora.\nSe você não solicitou isso, ignore este email.`,
+        html: `
+          <div style="font-family:sans-serif;max-width:400px;margin:auto">
+            <h2>DublyDesk — Redefinição de senha</h2>
+            <p>Use o código abaixo no app para criar uma nova senha:</p>
+            <h1 style="letter-spacing:8px;color:#6C63FF">${token}</h1>
+            <p style="color:#888">Válido por 1 hora. Se não foi você, ignore este email.</p>
+          </div>`,
+      });
+    } else {
+      // Sem SMTP configurado: exibe o código no log do servidor
+      console.log(`[DEV] Código de recuperação para ${email}: ${token}`);
+    }
+
+    res.json({ message: 'Se o email estiver cadastrado, você receberá o código.' });
+  } catch (err) {
+    console.error('POST /auth/forgot-password error:', err);
+    res.status(500).json({ error: 'Erro ao processar solicitação' });
+  }
+});
+
+// POST /auth/reset-password
+router.post('/reset-password', async (req, res) => {
+  const { email, token, newPassword } = req.body;
+
+  if (!email || !token || !newPassword) {
+    return res.status(400).json({ error: 'Email, código e nova senha são obrigatórios' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres' });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT pr.id, pr.user_id
+       FROM password_resets pr
+       JOIN users u ON u.id = pr.user_id
+       WHERE u.email = $1
+         AND pr.token = $2
+         AND pr.used = false
+         AND pr.expires_at > NOW()`,
+      [email.trim().toLowerCase(), token.trim()]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(400).json({ error: 'Código inválido ou expirado' });
+    }
+
+    const { id: resetId, user_id } = result.rows[0];
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [
+      passwordHash,
+      user_id,
+    ]);
+
+    await pool.query('UPDATE password_resets SET used = true WHERE id = $1', [resetId]);
+
+    res.json({ message: 'Senha redefinida com sucesso' });
+  } catch (err) {
+    console.error('POST /auth/reset-password error:', err);
+    res.status(500).json({ error: 'Erro ao redefinir senha' });
   }
 });
 

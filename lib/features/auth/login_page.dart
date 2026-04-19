@@ -4,6 +4,7 @@ import '../../auth_service.dart';
 import '../../core/services/api_service.dart';
 import '../../shared/widgets/cold_start_loading_widget.dart';
 import '../schedules/schedule_list_page.dart';
+import 'forgot_password_page.dart';
 import 'register_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -135,7 +136,21 @@ class _LoginPageState extends State<LoginPage> {
               ),
               child: Text(_loading ? 'Entrando...' : 'Entrar'),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 4),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const ForgotPasswordPage()),
+                );
+              },
+              child: const Text(
+                'Esqueci minha senha',
+                style: TextStyle(color: Colors.white54, fontSize: 13),
+              ),
+            ),
+            const SizedBox(height: 4),
             TextButton(
               onPressed: () {
                 Navigator.push(
