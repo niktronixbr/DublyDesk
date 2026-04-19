@@ -7,6 +7,7 @@ import '../../core/models/schedule_model.dart';
 import '../../core/services/api_service.dart';
 import '../../finance_page.dart';
 import '../../notification_service.dart';
+import '../../shared/widgets/cold_start_loading_widget.dart';
 import 'schedule_card.dart';
 import 'schedule_form_page.dart';
 
@@ -250,9 +251,7 @@ class _ScheduleListPageState extends State<ScheduleListPage> {
 
   Widget _buildLista() {
     if (_carregando) {
-      return const Expanded(
-        child: Center(child: CircularProgressIndicator()),
-      );
+      return const Expanded(child: ColdStartLoadingWidget());
     }
 
     if (_filtered.isEmpty) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../auth_service.dart';
 import '../../core/services/api_service.dart';
+import '../../shared/widgets/cold_start_loading_widget.dart';
 import '../schedules/schedule_list_page.dart';
 import 'register_page.dart';
 
@@ -64,7 +65,9 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Stack(
+      children: [
+        Scaffold(
       appBar: AppBar(title: const Text('DublyDesk')),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -145,6 +148,15 @@ class _LoginPageState extends State<LoginPage> {
           ],
         ),
       ),
+        ),
+        if (_loading)
+          const Positioned.fill(
+            child: ColoredBox(
+              color: Color(0xCC0F0F1A),
+              child: ColdStartLoadingWidget(),
+            ),
+          ),
+      ],
     );
   }
 }
