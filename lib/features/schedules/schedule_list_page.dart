@@ -5,6 +5,7 @@ import '../../auth_service.dart';
 import '../../core/app_navigator.dart';
 import '../../core/models/schedule_model.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/schedule_cache_service.dart';
 import '../../finance_page.dart';
 import '../../notification_service.dart';
 import '../../shared/widgets/cold_start_loading_widget.dart';
@@ -26,6 +27,7 @@ class _ScheduleListPageState extends State<ScheduleListPage> {
 
   double _totalRealizado = 0;
   bool _carregando = false;
+  bool _isOffline = false;
   String _userName = '';
 
   final _buscaController = TextEditingController();
@@ -67,25 +69,46 @@ class _ScheduleListPageState extends State<ScheduleListPage> {
 
     if (result['success'] == true) {
       final responseData = result['data'];
-      final List rawList = (responseData is Map && responseData.containsKey('data'))
+      final List rawList = (responseData is Map &&
+              responseData.containsKey('data'))
           ? responseData['data'] as List
           : responseData as List;
       final parsed = rawList
           .map((e) => ScheduleModel.fromJson(e as Map<String, dynamic>))
           .toList();
 
+      await ScheduleCacheService.save(parsed);
+
       double soma = 0;
       for (final s in parsed) {
         if (s.realizado) soma += s.valorTotal;
       }
 
+      if (!mounted) return;
       setState(() {
         _schedules = parsed;
         _totalRealizado = soma;
+        _isOffline = false;
       });
       _aplicarFiltros();
     } else {
-      _snack(result['error'] ?? 'Erro ao buscar escalas.');
+      final cached = await ScheduleCacheService.load();
+      if (!mounted) return;
+
+      if (cached.isNotEmpty) {
+        double soma = 0;
+        for (final s in cached) {
+          if (s.realizado) soma += s.valorTotal;
+        }
+        setState(() {
+          _schedules = cached;
+          _totalRealizado = soma;
+          _isOffline = true;
+        });
+        _aplicarFiltros();
+      } else {
+        _snack(result['error'] ?? 'Erro ao buscar escalas.');
+      }
     }
 
     if (mounted) setState(() => _carregando = false);
@@ -310,6 +333,37 @@ class _ScheduleListPageState extends State<ScheduleListPage> {
       ),
       body: Column(
         children: [
+          if (_isOffline)
+            Container(
+              width: double.infinity,
+              color: const Color(0xFFB45309),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
+                  const Icon(Icons.wifi_off, size: 16, color: Colors.white),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Você está offline — exibindo dados salvos',
+                      style: TextStyle(color: Colors.white, fontSize: 13),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _fetchSchedules,
+                    child: const Text(
+                      'Tentar novamente',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        decoration: TextDecoration.underline,
+                        decorationColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           _buildResumoTopo(),
           _buildFiltros(),
           _buildLista(),

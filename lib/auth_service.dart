@@ -46,6 +46,7 @@ class AuthService {
     await prefs.remove(_tokenKey);
     await prefs.remove(_userNameKey);
     await prefs.remove(_userEmailKey);
+    await prefs.remove('schedules_cache');
   }
 
   static String? parseErrorBody(String body) {
