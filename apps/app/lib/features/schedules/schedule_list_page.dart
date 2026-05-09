@@ -34,6 +34,9 @@ class ScheduleListPageState extends State<ScheduleListPage> {
 
   final _buscaController = TextEditingController();
   String _filtroProdutora = 'Todas';
+  String _filtroProjeto = 'Todos';
+  DateTime? _filtroDataInicio;
+  DateTime? _filtroDataFim;
 
   @override
   void initState() {
@@ -111,7 +114,20 @@ class ScheduleListPageState extends State<ScheduleListPage> {
       final atendeProdutora =
           _filtroProdutora == 'Todas' || s.produtora == _filtroProdutora;
 
-      return atendeBusca && atendeProdutora;
+      final atendeProjeto =
+          _filtroProjeto == 'Todos' || s.projeto == _filtroProjeto;
+
+      final atendeDataInicio = _filtroDataInicio == null ||
+          !s.data.isBefore(_filtroDataInicio!);
+
+      final atendeDataFim = _filtroDataFim == null ||
+          !s.data.isAfter(_filtroDataFim!.add(const Duration(days: 1)));
+
+      return atendeBusca &&
+          atendeProdutora &&
+          atendeProjeto &&
+          atendeDataInicio &&
+          atendeDataFim;
     }).toList();
 
     if (!mounted) return;
@@ -126,6 +142,32 @@ class ScheduleListPageState extends State<ScheduleListPage> {
         .toList()
       ..sort();
     return ['Todas', ...produtoras];
+  }
+
+  List<String> _projetosDisponiveis() {
+    final projetos = _schedules
+        .map((s) => s.projeto)
+        .where((p) => p.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    return ['Todos', ...projetos];
+  }
+
+  bool get _temFiltroAtivo =>
+      _filtroProdutora != 'Todas' ||
+      _filtroProjeto != 'Todos' ||
+      _filtroDataInicio != null ||
+      _filtroDataFim != null;
+
+  void _limparFiltros() {
+    setState(() {
+      _filtroProdutora = 'Todas';
+      _filtroProjeto = 'Todos';
+      _filtroDataInicio = null;
+      _filtroDataFim = null;
+    });
+    _aplicarFiltros();
   }
 
   void _snack(String msg) {
@@ -200,10 +242,10 @@ class ScheduleListPageState extends State<ScheduleListPage> {
           const SizedBox(height: 8),
           _buildSearch(theme),
           const SizedBox(height: 12),
-          _buildChips(theme),
+          _buildFiltroBar(theme),
           const SizedBox(height: 8),
           _buildSecaoHoje(theme),
-          Expanded(child: _buildLista(theme)),
+          Expanded(child: _buildListaAgrupada(theme)),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -326,49 +368,297 @@ class ScheduleListPageState extends State<ScheduleListPage> {
     );
   }
 
-  Widget _buildChips(ThemeData theme) {
-    final produtoras = _produtorasDisponiveis();
-    return SizedBox(
-      height: 36,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: produtoras.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (_, i) {
-          final p = produtoras[i];
-          final selected = _filtroProdutora == p;
-          return GestureDetector(
-            onTap: () {
-              setState(() => _filtroProdutora = p);
-              _aplicarFiltros();
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: selected
-                    ? AppColors.primaryLight
-                    : theme.colorScheme.surfaceContainer,
-                borderRadius: BorderRadius.circular(9999),
-                border: Border.all(
-                  color: selected
-                      ? AppColors.primaryLight
-                      : theme.dividerColor,
-                ),
-              ),
-              alignment: Alignment.center,
+  Widget _buildFiltroBar(ThemeData theme) {
+    final secondaryColor = theme.brightness == Brightness.dark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          if (_temFiltroAtivo) ...[
+            Expanded(
               child: Text(
-                p,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: selected
-                      ? const Color(0xFF1000A9)
-                      : theme.colorScheme.onSurface,
+                _resumoFiltros(),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.primaryLight,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            GestureDetector(
+              onTap: _limparFiltros,
+              child: Text(
+                'Limpar',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.error,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-          );
-        },
+            const SizedBox(width: 12),
+          ] else
+            Expanded(
+              child: Text(
+                'Sem filtros ativos',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: secondaryColor,
+                ),
+              ),
+            ),
+          GestureDetector(
+            onTap: () => _abrirFiltros(theme),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: _temFiltroAtivo
+                    ? AppColors.primary.withValues(alpha: 0.15)
+                    : theme.colorScheme.surfaceContainer,
+                borderRadius: BorderRadius.circular(9999),
+                border: Border.all(
+                  color: _temFiltroAtivo
+                      ? AppColors.primaryLight
+                      : theme.colorScheme.outlineVariant,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.tune,
+                    size: 16,
+                    color: _temFiltroAtivo
+                        ? AppColors.primaryLight
+                        : theme.colorScheme.onSurface,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Filtros',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: _temFiltroAtivo
+                          ? AppColors.primaryLight
+                          : theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  String _resumoFiltros() {
+    final partes = <String>[];
+    if (_filtroProdutora != 'Todas') partes.add(_filtroProdutora);
+    if (_filtroProjeto != 'Todos') partes.add(_filtroProjeto);
+    if (_filtroDataInicio != null || _filtroDataFim != null) {
+      final fmt = DateFormat('dd/MM', 'pt_BR');
+      final ini = _filtroDataInicio != null ? fmt.format(_filtroDataInicio!) : '…';
+      final fim = _filtroDataFim != null ? fmt.format(_filtroDataFim!) : '…';
+      partes.add('$ini – $fim');
+    }
+    return partes.join(' · ');
+  }
+
+  void _abrirFiltros(ThemeData theme) {
+    final produtoras = _produtorasDisponiveis();
+    final projetos = _projetosDisponiveis();
+    var tempProdutora = _filtroProdutora;
+    var tempProjeto = _filtroProjeto;
+    var tempInicio = _filtroDataInicio;
+    var tempFim = _filtroDataFim;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        final secondaryColor = theme.brightness == Brightness.dark
+            ? AppColors.darkTextSecondary
+            : AppColors.lightTextSecondary;
+
+        return StatefulBuilder(
+          builder: (ctx, setSheet) {
+            Future<void> pickDate({required bool isInicio}) async {
+              final picked = await showDatePicker(
+                context: ctx,
+                initialDate: (isInicio ? tempInicio : tempFim) ?? DateTime.now(),
+                firstDate: DateTime(2020),
+                lastDate: DateTime(2030),
+                locale: const Locale('pt', 'BR'),
+              );
+              if (picked != null) {
+                setSheet(() {
+                  if (isInicio) {
+                    tempInicio = picked;
+                  } else {
+                    tempFim = picked;
+                  }
+                });
+              }
+            }
+
+            Widget secao(String titulo, Widget conteudo) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                      child: Text(titulo,
+                          style: AppTheme.labelCaps(color: secondaryColor)),
+                    ),
+                    conteudo,
+                  ],
+                );
+
+            Widget opcaoLista(
+              String label,
+              bool selected,
+              VoidCallback onTap,
+            ) =>
+                ListTile(
+                  title: Text(label, style: theme.textTheme.bodyMedium),
+                  trailing: selected
+                      ? const Icon(Icons.check, color: AppColors.primary)
+                      : null,
+                  onTap: onTap,
+                  dense: true,
+                );
+
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.7,
+              maxChildSize: 0.92,
+              builder: (_, scrollCtrl) => Column(
+                children: [
+                  const SizedBox(height: 12),
+                  Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: theme.dividerColor,
+                      borderRadius: BorderRadius.circular(9999),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                    child: Row(
+                      children: [
+                        Text('Filtros',
+                            style: theme.textTheme.titleMedium),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: () {
+                            setSheet(() {
+                              tempProdutora = 'Todas';
+                              tempProjeto = 'Todos';
+                              tempInicio = null;
+                              tempFim = null;
+                            });
+                          },
+                          child: const Text('Limpar tudo'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(),
+                  Expanded(
+                    child: ListView(
+                      controller: scrollCtrl,
+                      children: [
+                        secao(
+                          'PRODUTORA',
+                          Column(
+                            children: produtoras
+                                .map((p) => opcaoLista(
+                                      p,
+                                      tempProdutora == p,
+                                      () => setSheet(() => tempProdutora = p),
+                                    ))
+                                .toList(),
+                          ),
+                        ),
+                        secao(
+                          'PROJETO',
+                          Column(
+                            children: projetos
+                                .map((p) => opcaoLista(
+                                      p,
+                                      tempProjeto == p,
+                                      () => setSheet(() => tempProjeto = p),
+                                    ))
+                                .toList(),
+                          ),
+                        ),
+                        secao(
+                          'PERÍODO',
+                          Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 20),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: _DatePickerTile(
+                                    label: 'De',
+                                    date: tempInicio,
+                                    onTap: () => pickDate(isInicio: true),
+                                    onClear: tempInicio != null
+                                        ? () => setSheet(() => tempInicio = null)
+                                        : null,
+                                    theme: theme,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _DatePickerTile(
+                                    label: 'Até',
+                                    date: tempFim,
+                                    onTap: () => pickDate(isInicio: false),
+                                    onClear: tempFim != null
+                                        ? () => setSheet(() => tempFim = null)
+                                        : null,
+                                    theme: theme,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _filtroProdutora = tempProdutora;
+                            _filtroProjeto = tempProjeto;
+                            _filtroDataInicio = tempInicio;
+                            _filtroDataFim = tempFim;
+                          });
+                          _aplicarFiltros();
+                          Navigator.pop(ctx);
+                        },
+                        child: const Text('Aplicar filtros'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -399,22 +689,69 @@ class ScheduleListPageState extends State<ScheduleListPage> {
     );
   }
 
-  Widget _buildLista(ThemeData theme) {
+  Widget _buildListaAgrupada(ThemeData theme) {
     if (_carregando && _schedules.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
-
     if (_filtered.isEmpty) {
       return const Center(child: Text('Nenhuma escala encontrada.'));
     }
 
+    final hoje = DateTime.now();
+    final inicioDia = DateTime(hoje.year, hoje.month, hoje.day);
+    final fimSemana = inicioDia.add(const Duration(days: 7));
+
+    final anteriores = <ScheduleModel>[];
+    final deHoje = <ScheduleModel>[];
+    final estaSemana = <ScheduleModel>[];
+    final futuras = <ScheduleModel>[];
+
+    for (final s in _filtered) {
+      final dia = DateTime(s.data.year, s.data.month, s.data.day);
+      if (dia.isBefore(inicioDia)) {
+        anteriores.add(s);
+      } else if (dia.isAtSameMomentAs(inicioDia)) {
+        deHoje.add(s);
+      } else if (dia.isBefore(fimSemana)) {
+        estaSemana.add(s);
+      } else {
+        futuras.add(s);
+      }
+    }
+
+    final secoes = <_Secao>[
+      if (deHoje.isNotEmpty) _Secao('HOJE', deHoje),
+      if (estaSemana.isNotEmpty) _Secao('ESTA SEMANA', estaSemana),
+      if (futuras.isNotEmpty) _Secao('FUTURAS', futuras),
+      if (anteriores.isNotEmpty)
+        _Secao('ANTERIORES', anteriores.reversed.toList()),
+    ];
+
+    final items = <Object>[];
+    for (final s in secoes) {
+      items.add(s.titulo);
+      items.addAll(s.items);
+    }
+
+    final secondaryColor = theme.brightness == Brightness.dark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+
     return RefreshIndicator(
       onRefresh: _fetchSchedules,
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
-        itemCount: _filtered.length,
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
+        itemCount: items.length,
         itemBuilder: (context, index) {
-          final schedule = _filtered[index];
+          final item = items[index];
+          if (item is String) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
+              child: Text(item,
+                  style: AppTheme.labelCaps(color: secondaryColor)),
+            );
+          }
+          final schedule = item as ScheduleModel;
           return ScheduleCard(
             schedule: schedule,
             onTap: () => _openForm(item: schedule),
@@ -448,6 +785,71 @@ class ScheduleListPageState extends State<ScheduleListPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _Secao {
+  final String titulo;
+  final List<ScheduleModel> items;
+  const _Secao(this.titulo, this.items);
+}
+
+class _DatePickerTile extends StatelessWidget {
+  final String label;
+  final DateTime? date;
+  final VoidCallback onTap;
+  final VoidCallback? onClear;
+  final ThemeData theme;
+
+  const _DatePickerTile({
+    required this.label,
+    required this.date,
+    required this.onTap,
+    required this.onClear,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final text = date != null
+        ? DateFormat('dd/MM/yyyy', 'pt_BR').format(date!)
+        : 'Selecionar';
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      style: theme.textTheme.labelSmall
+                          ?.copyWith(color: AppColors.primaryLight)),
+                  const SizedBox(height: 2),
+                  Text(text, style: theme.textTheme.bodyMedium),
+                ],
+              ),
+            ),
+            if (onClear != null)
+              GestureDetector(
+                onTap: onClear,
+                child: const Icon(Icons.close, size: 16, color: AppColors.error),
+              )
+            else
+              const Icon(Icons.calendar_today_outlined,
+                  size: 16, color: AppColors.primaryLight),
+          ],
+        ),
       ),
     );
   }

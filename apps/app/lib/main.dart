@@ -85,10 +85,9 @@ class _AuthGateState extends State<AuthGate> {
     final token = await AuthService.getToken();
     final remember = await AuthService.getRememberMe();
 
-    // Se "Lembrar de mim" foi desmarcado no último login,
-    // apaga o token salvo ao reabrir o app — força novo login.
+    // Se "Lembrar de mim" foi desmarcado, exibe login sem apagar o token
+    // (token preservado para login por biometria).
     if (token != null && token.isNotEmpty && !remember) {
-      await AuthService.logout();
       if (!mounted) return;
       setState(() {
         _logged = false;

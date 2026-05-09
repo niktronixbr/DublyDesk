@@ -59,8 +59,9 @@ class NotificationService {
 
     try {
       await androidImplementation?.requestNotificationsPermission();
+      await androidImplementation?.requestExactAlarmsPermission();
     } catch (e) {
-      debugPrint('Erro ao solicitar permissão de notificações: $e');
+      debugPrint('Erro ao solicitar permissões de notificações: $e');
     }
   }
 
@@ -131,7 +132,7 @@ class NotificationService {
             priority: Priority.high,
           ),
         ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         payload: payload,
       );
 

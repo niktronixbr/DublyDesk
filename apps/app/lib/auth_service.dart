@@ -31,6 +31,11 @@ class AuthService {
     return prefs.getString(_tokenKey);
   }
 
+  static Future<bool> hasSavedToken() async {
+    final token = await getToken();
+    return token != null && token.isNotEmpty;
+  }
+
   static Future<String?> getUserName() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_userNameKey);
