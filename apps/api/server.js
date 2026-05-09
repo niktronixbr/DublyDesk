@@ -12,6 +12,8 @@ const app = express();
 
 const allowedOrigin = process.env.FRONTEND_ORIGIN || '*';
 
+app.set('trust proxy', 1);
+
 app.use(cors({
   origin: allowedOrigin === '*' ? true : allowedOrigin,
 }));
