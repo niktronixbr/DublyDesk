@@ -10,6 +10,9 @@ class ScheduleModel {
   final double valorTotal;
   final bool realizado;
   final String? observacao;
+  final String? tipoTrabalho;
+  final String? contatoNome;
+  final String? contatoTelefone;
   final Map<String, bool> lembretes;
   final DateTime createdAt;
 
@@ -32,6 +35,9 @@ class ScheduleModel {
     required this.valorTotal,
     required this.realizado,
     this.observacao,
+    this.tipoTrabalho,
+    this.contatoNome,
+    this.contatoTelefone,
     this.lembretes = defaultLembretes,
     required this.createdAt,
   });
@@ -60,6 +66,9 @@ class ScheduleModel {
       valorTotal: double.tryParse(json['valor_total'].toString()) ?? 0,
       realizado: json['realizado'] == true,
       observacao: json['observacao']?.toString(),
+      tipoTrabalho: json['tipo_trabalho']?.toString(),
+      contatoNome: json['contato_nome']?.toString(),
+      contatoTelefone: json['contato_telefone']?.toString(),
       lembretes: lembretes,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'].toString())
@@ -78,6 +87,9 @@ class ScheduleModel {
         'valor_total': valorTotal,
         'realizado': realizado,
         'observacao': observacao,
+        'tipo_trabalho': tipoTrabalho,
+        'contato_nome': contatoNome,
+        'contato_telefone': contatoTelefone,
         'lembretes': lembretes,
       };
 
@@ -93,6 +105,9 @@ class ScheduleModel {
         valorTotal: valorTotal,
         realizado: realizado ?? this.realizado,
         observacao: observacao,
+        tipoTrabalho: tipoTrabalho,
+        contatoNome: contatoNome,
+        contatoTelefone: contatoTelefone,
         lembretes: lembretes,
         createdAt: createdAt,
       );

@@ -128,6 +128,21 @@ async function createTables() {
   } catch (err) {
     console.error('❌ Erro na migration lembretes:', err);
   }
+
+  try {
+    await pool.query(`ALTER TABLE produtoras ADD COLUMN IF NOT EXISTS contato_nome TEXT`);
+    await pool.query(`ALTER TABLE produtoras ADD COLUMN IF NOT EXISTS contato_telefone TEXT`);
+  } catch (err) {
+    console.error('❌ Erro na migration produtoras.contato:', err);
+  }
+
+  try {
+    await pool.query(`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS tipo_trabalho TEXT`);
+    await pool.query(`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS contato_nome TEXT`);
+    await pool.query(`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS contato_telefone TEXT`);
+  } catch (err) {
+    console.error('❌ Erro na migration schedules.tipo_trabalho/contato:', err);
+  }
 }
 
 app.get('/health', (req, res) => {

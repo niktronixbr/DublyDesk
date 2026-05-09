@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../auth_service.dart';
 import '../../core/services/api_service.dart';
-import '../schedules/schedule_list_page.dart';
+import '../../core/services/theme_service.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
+import '../../home_page.dart';
 import 'forgot_password_page.dart';
 import 'register_page.dart';
 
@@ -18,6 +21,7 @@ class _LoginPageState extends State<LoginPage> {
   final _password = TextEditingController();
   bool _loading = false;
   bool _obscurePassword = true;
+  bool _rememberMe = true;
 
   @override
   void dispose() {
@@ -27,6 +31,11 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _login() async {
+    if (_email.text.trim().isEmpty || _password.text.trim().isEmpty) {
+      _snack('Preencha email e senha.');
+      return;
+    }
+
     setState(() => _loading = true);
 
     final result = await ApiService.post(
@@ -47,12 +56,15 @@ class _LoginPageState extends State<LoginPage> {
         token: data['token'],
         name: data['user']['name'],
         email: data['user']['email'],
+        rememberMe: _rememberMe,
       );
 
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const ScheduleListPage()),
+        MaterialPageRoute(
+          builder: (_) => HomePage(themeService: ThemeService()),
+        ),
       );
     } else {
       _snack(result['error'] ?? 'Erro no login');
@@ -65,112 +77,198 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Scaffold(
-      appBar: AppBar(title: const Text('DublyDesk')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: ListView(
+    final theme = Theme.of(context);
+    final secondaryColor = theme.brightness == Brightness.dark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+
+    return Scaffold(
+      body: SafeArea(
+        child: Stack(
           children: [
-            const SizedBox(height: 50),
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF1C1C2B), Color(0xFF2A2A40)],
-                ),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'DublyDesk',
-                    style: TextStyle(
-                      fontSize: 30,
-                      fontWeight: FontWeight.bold,
+            ListView(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+              children: [
+                // ----- Logo -----
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Image.asset(
+                      'assets/images/logo.jpeg',
+                      width: 96,
+                      height: 96,
+                      fit: BoxFit.cover,
                     ),
                   ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Gestão premium de escalas de dublagem',
-                    style: TextStyle(color: Colors.white70),
+                ),
+                const SizedBox(height: 24),
+
+                // ----- Card de boas-vindas -----
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainer,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: theme.dividerColor),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            TextField(
-              controller: _email,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                prefixIcon: Icon(Icons.email_outlined),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _password,
-              obscureText: _obscurePassword,
-              decoration: InputDecoration(
-                labelText: 'Senha',
-                prefixIcon: const Icon(Icons.lock_outline),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword
-                        ? Icons.visibility_off
-                        : Icons.visibility,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Boas-vindas',
+                        style: theme.textTheme.headlineMedium,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Acesse o painel profissional de gestão de voz',
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(color: secondaryColor),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // E-MAIL
+                      Text(
+                        'E-MAIL',
+                        style: AppTheme.labelCaps(color: secondaryColor),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _email,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          hintText: 'voce@exemplo.com',
+                          prefixIcon: Icon(Icons.email_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // SENHA + esqueci
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'SENHA',
+                              style:
+                                  AppTheme.labelCaps(color: secondaryColor),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ForgotPasswordPage(),
+                              ),
+                            ),
+                            child: Text(
+                              'Esqueci minha senha',
+                              style: AppTheme.labelCaps(
+                                color: AppColors.primaryLight,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _password,
+                        obscureText: _obscurePassword,
+                        decoration: InputDecoration(
+                          hintText: '••••••••',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
+                            onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Lembrar de mim
+                      InkWell(
+                        onTap: () => setState(() => _rememberMe = !_rememberMe),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: Checkbox(
+                                  value: _rememberMe,
+                                  onChanged: (v) =>
+                                      setState(() => _rememberMe = v ?? false),
+                                  activeColor: AppColors.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Lembrar de mim',
+                                style: theme.textTheme.bodyMedium,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Entrar
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _loading ? null : _login,
+                          child: Text(
+                            _loading
+                                ? 'Entrando...'
+                                : 'Entrar no Painel  →',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Criar conta
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const RegisterPage(),
+                            ),
+                          ),
+                          child: const Text('Criar nova conta de artista'),
+                        ),
+                      ),
+                    ],
                   ),
-                  onPressed: () =>
-                      setState(() => _obscurePassword = !_obscurePassword),
+                ),
+
+                const SizedBox(height: 32),
+                Center(
+                  child: Text(
+                    '© 2026 DUBLYDESK — SISTEMA PROFISSIONAL DE GESTÃO DE VOZ',
+                    textAlign: TextAlign.center,
+                    style: AppTheme.labelCaps(color: secondaryColor),
+                  ),
+                ),
+              ],
+            ),
+            if (_loading)
+              Positioned.fill(
+                child: ColoredBox(
+                  color: theme.scaffoldBackgroundColor.withValues(alpha: 0.6),
+                  child: const Center(child: CircularProgressIndicator()),
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _loading ? null : _login,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.all(16),
-              ),
-              child: Text(_loading ? 'Entrando...' : 'Entrar'),
-            ),
-            const SizedBox(height: 4),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const ForgotPasswordPage()),
-                );
-              },
-              child: const Text(
-                'Esqueci minha senha',
-                style: TextStyle(color: Colors.white54, fontSize: 13),
-              ),
-            ),
-            const SizedBox(height: 4),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const RegisterPage()),
-                );
-              },
-              child: const Text('Criar conta'),
-            ),
           ],
         ),
       ),
-        ),
-        if (_loading)
-          Positioned.fill(
-            child: ColoredBox(
-              color: const Color(0xCC0F0F1A),
-              child: const Center(child: CircularProgressIndicator()),
-            ),
-          ),
-      ],
     );
   }
 }

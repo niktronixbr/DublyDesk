@@ -3,13 +3,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeService extends ChangeNotifier {
   static const _key = 'theme_mode';
+  static final ThemeService instance = ThemeService._internal();
 
   ThemeMode _mode = ThemeMode.dark;
   ThemeMode get mode => _mode;
+  bool get isDark => _mode == ThemeMode.dark;
 
-  ThemeService() {
+  ThemeService._internal() {
     _load();
   }
+
+  /// Mantido por compatibilidade com chamadores antigos — devolve a mesma
+  /// instância singleton.
+  factory ThemeService() => instance;
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -26,6 +32,4 @@ class ThemeService extends ChangeNotifier {
     await prefs.setString(_key, _mode == ThemeMode.dark ? 'dark' : 'light');
     notifyListeners();
   }
-
-  bool get isDark => _mode == ThemeMode.dark;
 }

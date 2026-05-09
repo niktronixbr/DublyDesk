@@ -4,36 +4,41 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'auth_service.dart';
 import 'core/app_navigator.dart';
 import 'core/services/theme_service.dart';
+import 'core/theme/app_theme.dart';
 import 'features/auth/login_page.dart';
-import 'features/schedules/schedule_list_page.dart';
+import 'home_page.dart';
 import 'notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService.init();
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
-  MyApp({super.key});
+  const MyApp({super.key});
 
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
-  final _themeService = ThemeService();
+  final _themeService = ThemeService.instance;
 
   @override
   void initState() {
     super.initState();
-    _themeService.addListener(() => setState(() {}));
+    _themeService.addListener(_onTheme);
   }
 
   @override
   void dispose() {
-    _themeService.dispose();
+    _themeService.removeListener(_onTheme);
     super.dispose();
+  }
+
+  void _onTheme() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -48,46 +53,11 @@ class _MyAppState extends State<MyApp> {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('pt', 'BR'),
-        Locale('en', 'US'),
-      ],
+      supportedLocales: const [Locale('pt', 'BR'), Locale('en', 'US')],
       themeMode: _themeService.mode,
-      theme: ThemeData.light().copyWith(
-        scaffoldBackgroundColor: const Color(0xFFF0F0F8),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          foregroundColor: Colors.black87,
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide.none,
-          ),
-        ),
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
-      darkTheme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF0F0F1A),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: const Color(0xFF1E1E2E),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide.none,
-          ),
-        ),
-      ),
-      routes: {
-        '/login': (_) => const LoginPage(),
-      },
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      routes: {'/login': (_) => const LoginPage()},
       home: AuthGate(themeService: _themeService),
     );
   }
@@ -113,6 +83,20 @@ class _AuthGateState extends State<AuthGate> {
 
   Future<void> _checkSession() async {
     final token = await AuthService.getToken();
+    final remember = await AuthService.getRememberMe();
+
+    // Se "Lembrar de mim" foi desmarcado no último login,
+    // apaga o token salvo ao reabrir o app — força novo login.
+    if (token != null && token.isNotEmpty && !remember) {
+      await AuthService.logout();
+      if (!mounted) return;
+      setState(() {
+        _logged = false;
+        _loading = false;
+      });
+      return;
+    }
+
     if (!mounted) return;
     setState(() {
       _logged = token != null && token.isNotEmpty;
@@ -123,12 +107,10 @@ class _AuthGateState extends State<AuthGate> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     return _logged
-        ? ScheduleListPage(themeService: widget.themeService)
+        ? HomePage(themeService: widget.themeService)
         : const LoginPage();
   }
 }

@@ -4,7 +4,7 @@ class ChartWidget extends StatelessWidget {
   final List schedules;
   final int mes;
 
-  ChartWidget({required this.schedules, required this.mes});
+  const ChartWidget({super.key, required this.schedules, required this.mes});
 
   @override
   Widget build(BuildContext context) {
@@ -15,8 +15,7 @@ class ChartWidget extends StatelessWidget {
 
       if (data.month == mes) {
         final dia = data.day;
-        final valor =
-            double.tryParse(item['valor_total'].toString()) ?? 0;
+        final valor = double.tryParse(item['valor_total'].toString()) ?? 0;
 
         dias[dia] = (dias[dia] ?? 0) + valor;
       }

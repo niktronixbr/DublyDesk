@@ -2,31 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../auth_service.dart';
-import '../../core/app_navigator.dart';
+import '../../calendar_page.dart';
 import '../../core/models/schedule_model.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/schedule_cache_service.dart';
 import '../../core/services/theme_service.dart';
-import '../../finance_page.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../notification_service.dart';
 import 'schedule_card.dart';
 import 'schedule_form_page.dart';
-
-final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
 class ScheduleListPage extends StatefulWidget {
   final ThemeService? themeService;
   const ScheduleListPage({super.key, this.themeService});
 
   @override
-  State<ScheduleListPage> createState() => _ScheduleListPageState();
+  State<ScheduleListPage> createState() => ScheduleListPageState();
 }
 
-class _ScheduleListPageState extends State<ScheduleListPage> {
+class ScheduleListPageState extends State<ScheduleListPage> {
+  /// Permite que o shell de navegação dispare um refresh externo.
+  Future<void> refresh() => _fetchSchedules();
+
   List<ScheduleModel> _schedules = [];
   List<ScheduleModel> _filtered = [];
 
-  double _totalRealizado = 0;
   bool _carregando = false;
   bool _isOffline = false;
   String _userName = '';
@@ -55,12 +56,6 @@ class _ScheduleListPageState extends State<ScheduleListPage> {
     setState(() => _userName = nome ?? '');
   }
 
-  Future<void> _logout() async {
-    await AuthService.logout();
-    navigatorKey.currentState
-        ?.pushNamedAndRemoveUntil('/login', (_) => false);
-  }
-
   Future<void> _fetchSchedules() async {
     setState(() => _carregando = true);
 
@@ -70,25 +65,19 @@ class _ScheduleListPageState extends State<ScheduleListPage> {
 
     if (result['success'] == true) {
       final responseData = result['data'];
-      final List rawList = (responseData is Map &&
-              responseData.containsKey('data'))
-          ? responseData['data'] as List
-          : responseData as List;
+      final List rawList =
+          (responseData is Map && responseData.containsKey('data'))
+              ? responseData['data'] as List
+              : responseData as List;
       final parsed = rawList
           .map((e) => ScheduleModel.fromJson(e as Map<String, dynamic>))
           .toList();
 
       await ScheduleCacheService.save(parsed);
 
-      double soma = 0;
-      for (final s in parsed) {
-        if (s.realizado) soma += s.valorTotal;
-      }
-
       if (!mounted) return;
       setState(() {
         _schedules = parsed;
-        _totalRealizado = soma;
         _isOffline = false;
       });
       _aplicarFiltros();
@@ -97,13 +86,8 @@ class _ScheduleListPageState extends State<ScheduleListPage> {
       if (!mounted) return;
 
       if (cached.isNotEmpty) {
-        double soma = 0;
-        for (final s in cached) {
-          if (s.realizado) soma += s.valorTotal;
-        }
         setState(() {
           _schedules = cached;
-          _totalRealizado = soma;
           _isOffline = true;
         });
         _aplicarFiltros();
@@ -162,9 +146,10 @@ class _ScheduleListPageState extends State<ScheduleListPage> {
   }
 
   Future<void> _toggleRealizado(ScheduleModel item) async {
-    // Impede marcar como realizado antes da data/hora agendada
     if (!item.realizado && DateTime.now().isBefore(item.data)) {
-      _snack('A escala ainda não ocorreu. Só é possível marcar como realizada após o horário agendado.');
+      _snack(
+        'A escala ainda não ocorreu. Só é possível marcar como realizada após o horário agendado.',
+      );
       return;
     }
 
@@ -191,267 +176,275 @@ class _ScheduleListPageState extends State<ScheduleListPage> {
     }
   }
 
-  Widget _buildResumoTopo() {
-    final realizadas = _schedules.where((s) => s.realizado).length;
-    final pendentes = _schedules.where((s) => !s.realizado).length;
+  String get _iniciais {
+    final partes = _userName.trim().split(RegExp(r'\s+'));
+    if (partes.isEmpty || partes.first.isEmpty) return '?';
+    if (partes.length == 1) return partes.first.characters.first.toUpperCase();
+    return (partes.first.characters.first + partes.last.characters.first)
+        .toUpperCase();
+  }
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1C1C2B), Color(0xFF2A2A40)],
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  // ----------------------------------------------------------------
+  // UI
+  // ----------------------------------------------------------------
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: _buildAppBar(theme),
+      body: Column(
         children: [
-          Text(
-            _userName.isEmpty ? 'DublyDesk' : 'Olá, $_userName',
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
-          ),
+          if (_isOffline) _buildOfflineBanner(),
           const SizedBox(height: 8),
-          Text(
-            _moeda.format(_totalRealizado),
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.greenAccent,
-            ),
-          ),
+          _buildSearch(theme),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _MiniStatusCard(
-                  titulo: 'Realizadas',
-                  valor: realizadas.toString(),
-                  cor: Colors.greenAccent,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _MiniStatusCard(
-                  titulo: 'Pendentes',
-                  valor: pendentes.toString(),
-                  cor: Colors.orangeAccent,
-                ),
-              ),
-            ],
-          ),
+          _buildChips(theme),
+          const SizedBox(height: 8),
+          _buildSecaoHoje(theme),
+          Expanded(child: _buildLista(theme)),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _openForm(),
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
-  Widget _buildFiltros() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      child: Column(
+  PreferredSizeWidget _buildAppBar(ThemeData theme) {
+    return AppBar(
+      titleSpacing: 16,
+      title: Row(
         children: [
-          TextField(
-            controller: _buscaController,
-            decoration: const InputDecoration(
-              hintText: 'Buscar por projeto, produtora ou diretor',
-              prefixIcon: Icon(Icons.search),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: theme.colorScheme.surfaceContainer,
+              border: Border.all(color: AppColors.primaryLight, width: 1.5),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              _iniciais,
+              style: theme.textTheme.labelLarge
+                  ?.copyWith(color: AppColors.primaryLight),
             ),
           ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1E2E),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: DropdownButton<String>(
-              value: _filtroProdutora,
-              isExpanded: true,
-              dropdownColor: const Color(0xFF1E1E2E),
-              underline: const SizedBox(),
-              items: _produtorasDisponiveis()
-                  .map((p) => DropdownMenuItem(value: p, child: Text(p)))
-                  .toList(),
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() => _filtroProdutora = value);
-                _aplicarFiltros();
-              },
-            ),
+          const SizedBox(width: 12),
+          Text(
+            'DublyDesk',
+            style: theme.appBarTheme.titleTextStyle,
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildLista() {
-    if (_carregando) {
-      return const Expanded(child: Center(child: CircularProgressIndicator()));
-    }
-
-    if (_filtered.isEmpty) {
-      return const Expanded(
-        child: Center(child: Text('Nenhuma escala encontrada.')),
-      );
-    }
-
-    return Expanded(
-      child: RefreshIndicator(
-        onRefresh: _fetchSchedules,
-        child: ListView.builder(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          itemCount: _filtered.length,
-          itemBuilder: (context, index) {
-            final schedule = _filtered[index];
-            return ScheduleCard(
-              schedule: schedule,
-              onTap: () => _openForm(item: schedule),
-              onDelete: () => _deletar(schedule.id),
-              onToggleRealizado: () => _toggleRealizado(schedule),
+      actions: [
+        IconButton(
+          tooltip: 'Notificações',
+          icon: const Icon(Icons.notifications_outlined),
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('Notificações em breve.')),
             );
           },
         ),
+        IconButton(
+          tooltip: 'Calendário',
+          icon: const Icon(Icons.calendar_month_outlined),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CalendarPage(escalas: _schedules),
+            ),
+          ).then((_) => _fetchSchedules()),
+        ),
+        const SizedBox(width: 4),
+      ],
+    );
+  }
+
+  Widget _buildOfflineBanner() {
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFB45309),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          const Icon(Icons.wifi_off, size: 16, color: Colors.white),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              'Você está offline — exibindo dados salvos',
+              style: TextStyle(color: Colors.white, fontSize: 13),
+            ),
+          ),
+          GestureDetector(
+            onTap: _fetchSchedules,
+            child: const Text(
+              'Tentar novamente',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                decoration: TextDecoration.underline,
+                decorationColor: Colors.white,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _appBarBtn({
-    required IconData icon,
-    required String tooltip,
-    required Color color,
-    required VoidCallback onPressed,
-  }) {
+  Widget _buildSearch(ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-      child: Tooltip(
-        message: tooltip,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 22),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: TextField(
+        controller: _buscaController,
+        decoration: InputDecoration(
+          hintText: 'Buscar por projeto, produtora ou diretor',
+          prefixIcon: const Icon(Icons.search),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(9999),
+            borderSide: BorderSide.none,
           ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(9999),
+            borderSide: BorderSide(color: theme.dividerColor),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(9999),
+            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          ),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         ),
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('DublyDesk'),
-        actions: [
-          _appBarBtn(
-            icon: Icons.add,
-            tooltip: 'Nova escala',
-            color: Colors.deepPurpleAccent,
-            onPressed: () => _openForm(),
-          ),
-          _appBarBtn(
-            icon: Icons.attach_money,
-            tooltip: 'Financeiro',
-            color: Colors.greenAccent,
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const FinancePage()),
-            ),
-          ),
-          if (widget.themeService != null)
-            _appBarBtn(
-              icon: widget.themeService!.isDark
-                  ? Icons.light_mode
-                  : Icons.dark_mode,
-              tooltip: widget.themeService!.isDark ? 'Tema claro' : 'Tema escuro',
-              color: Colors.amberAccent,
-              onPressed: () => widget.themeService!.toggle(),
-            ),
-          _appBarBtn(
-            icon: Icons.logout,
-            tooltip: 'Sair',
-            color: Colors.redAccent,
-            onPressed: _logout,
-          ),
-          const SizedBox(width: 4),
-        ],
-      ),
-      body: Column(
-        children: [
-          if (_isOffline)
-            Container(
-              width: double.infinity,
-              color: const Color(0xFFB45309),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Row(
-                children: [
-                  const Icon(Icons.wifi_off, size: 16, color: Colors.white),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Você está offline — exibindo dados salvos',
-                      style: TextStyle(color: Colors.white, fontSize: 13),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: _fetchSchedules,
-                    child: const Text(
-                      'Tentar novamente',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        decoration: TextDecoration.underline,
-                        decorationColor: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
+  Widget _buildChips(ThemeData theme) {
+    final produtoras = _produtorasDisponiveis();
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: produtoras.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (_, i) {
+          final p = produtoras[i];
+          final selected = _filtroProdutora == p;
+          return GestureDetector(
+            onTap: () {
+              setState(() => _filtroProdutora = p);
+              _aplicarFiltros();
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: selected
+                    ? AppColors.primaryLight
+                    : theme.colorScheme.surfaceContainer,
+                borderRadius: BorderRadius.circular(9999),
+                border: Border.all(
+                  color: selected
+                      ? AppColors.primaryLight
+                      : theme.dividerColor,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                p,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: selected
+                      ? const Color(0xFF1000A9)
+                      : theme.colorScheme.onSurface,
+                ),
               ),
             ),
-          _buildResumoTopo(),
-          _buildFiltros(),
-          _buildLista(),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSecaoHoje(ThemeData theme) {
+    final secondaryColor = theme.brightness == Brightness.dark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    final hoje = DateFormat('EEEE, dd MMM', 'pt_BR').format(DateTime.now());
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              _userName.isEmpty
+                  ? 'Suas escalas'
+                  : 'Olá, ${_userName.split(' ').first}',
+              style: theme.textTheme.titleLarge,
+            ),
+          ),
+          Text(
+            hoje[0].toUpperCase() + hoje.substring(1),
+            style: AppTheme.labelCaps(color: secondaryColor),
+          ),
         ],
       ),
     );
   }
-}
 
-class _MiniStatusCard extends StatelessWidget {
-  final String titulo;
-  final String valor;
-  final Color cor;
+  Widget _buildLista(ThemeData theme) {
+    if (_carregando && _schedules.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-  const _MiniStatusCard({
-    required this.titulo,
-    required this.valor,
-    required this.cor,
-  });
+    if (_filtered.isEmpty) {
+      return const Center(child: Text('Nenhuma escala encontrada.'));
+    }
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(14),
+    return RefreshIndicator(
+      onRefresh: _fetchSchedules,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
+        itemCount: _filtered.length,
+        itemBuilder: (context, index) {
+          final schedule = _filtered[index];
+          return ScheduleCard(
+            schedule: schedule,
+            onTap: () => _openForm(item: schedule),
+            onDelete: () => _confirmarDelete(schedule.id),
+            onToggleRealizado: () => _toggleRealizado(schedule),
+          );
+        },
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(titulo, style: const TextStyle(color: Colors.white70)),
-          const SizedBox(height: 6),
-          Text(
-            valor,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-              color: cor,
+    );
+  }
+
+  void _confirmarDelete(int id) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Excluir escala'),
+        content: const Text('Deseja apagar esta escala?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deletar(id);
+            },
+            child: const Text(
+              'Excluir',
+              style: TextStyle(color: AppColors.error),
             ),
           ),
         ],

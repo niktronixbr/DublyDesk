@@ -3,9 +3,22 @@ import 'package:intl/intl.dart';
 
 import '../../core/models/schedule_model.dart';
 import '../../core/services/api_service.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../notification_service.dart';
 
-// Rótulos exibidos para cada chave de lembrete
+/// Tipos de trabalho mais comuns sugeridos no autocomplete.
+const _tiposTrabalhoSugeridos = <String>[
+  'Loops',
+  'Voz Adicional',
+  'Cachet Fixo',
+  'Protagonista',
+  'Cocô',
+  'Reality',
+  'Documentário',
+  'Locução',
+];
+
 const _labelLembretes = {
   '60min': '1 hora antes',
   '30min': '30 minutos antes',
@@ -31,6 +44,9 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
   final _projeto = TextEditingController();
   final _produtora = TextEditingController();
   final _diretor = TextEditingController();
+  final _tipoTrabalho = TextEditingController();
+  final _contatoNome = TextEditingController();
+  final _contatoTelefone = TextEditingController();
   final _valorHora = TextEditingController();
   final _horaInicio = TextEditingController();
   final _horaFim = TextEditingController();
@@ -38,21 +54,29 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
 
   DateTime? _dataSelecionada;
   bool _salvando = false;
-  List<String> _produtorasSugeridas = [];
+  bool _mostrarLembretes = false;
+
+  List<Map<String, dynamic>> _produtorasFull = [];
+  List<String> _produtorasNomes = [];
   List<String> _projetosSugeridos = [];
   List<String> _diretoresSugeridos = [];
-  Map<String, bool> _lembretes = Map<String, bool>.from(ScheduleModel.defaultLembretes);
+  Map<String, bool> _lembretes = Map<String, bool>.from(
+    ScheduleModel.defaultLembretes,
+  );
 
   @override
   void initState() {
     super.initState();
-    _carregarProdutoras();
+    _carregarSugestoes();
 
     if (widget.item != null) {
       final item = widget.item!;
       _projeto.text = item.projeto;
       _produtora.text = item.produtora;
       _diretor.text = item.diretor ?? '';
+      _tipoTrabalho.text = item.tipoTrabalho ?? '';
+      _contatoNome.text = item.contatoNome ?? '';
+      _contatoTelefone.text = item.contatoTelefone ?? '';
       _valorHora.text = item.valorHora.toString().replaceAll('.', ',');
       _horaInicio.text = item.horaInicio;
       _horaFim.text = item.horaFim;
@@ -60,6 +84,10 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
       _dataSelecionada = item.data;
       _lembretes = Map<String, bool>.from(item.lembretes);
     }
+
+    _valorHora.addListener(() => setState(() {}));
+    _horaInicio.addListener(() => setState(() {}));
+    _horaFim.addListener(() => setState(() {}));
   }
 
   @override
@@ -67,6 +95,9 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
     _projeto.dispose();
     _produtora.dispose();
     _diretor.dispose();
+    _tipoTrabalho.dispose();
+    _contatoNome.dispose();
+    _contatoTelefone.dispose();
     _valorHora.dispose();
     _horaInicio.dispose();
     _horaFim.dispose();
@@ -74,14 +105,14 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
     super.dispose();
   }
 
-  Future<void> _carregarProdutoras() async {
+  Future<void> _carregarSugestoes() async {
     final results = await Future.wait([
       ApiService.get('/produtoras'),
       ApiService.get('/projetos'),
       ApiService.get('/diretores'),
     ]);
 
-    List<String> _nomes(Map<String, dynamic> r) {
+    List<String> nomes(Map<String, dynamic> r) {
       if (r['success'] != true || r['data'] is! List) return [];
       return (r['data'] as List)
           .map((e) => e['nome']?.toString() ?? '')
@@ -89,20 +120,70 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
           .toList();
     }
 
+    final produtorasResp = results[0];
+    final List<Map<String, dynamic>> produtorasFull =
+        (produtorasResp['success'] == true && produtorasResp['data'] is List)
+            ? (produtorasResp['data'] as List)
+                .map((e) => Map<String, dynamic>.from(e as Map))
+                .toList()
+            : [];
+
+    if (!mounted) return;
     setState(() {
-      _produtorasSugeridas = _nomes(results[0]);
-      _projetosSugeridos = _nomes(results[1]);
-      _diretoresSugeridos = _nomes(results[2]);
+      _produtorasFull = produtorasFull;
+      _produtorasNomes = produtorasFull
+          .map((e) => e['nome']?.toString() ?? '')
+          .where((n) => n.isNotEmpty)
+          .toList();
+      _projetosSugeridos = nomes(results[1]);
+      _diretoresSugeridos = nomes(results[2]);
+    });
+  }
+
+  void _autoPreencherContato(String nomeProdutora) {
+    final p = _produtorasFull.firstWhere(
+      (e) => (e['nome']?.toString() ?? '') == nomeProdutora,
+      orElse: () => <String, dynamic>{},
+    );
+    final cn = p['contato_nome']?.toString();
+    final ct = p['contato_telefone']?.toString();
+
+    // Só preenche se o usuário ainda não digitou nada manualmente.
+    setState(() {
+      if (_contatoNome.text.trim().isEmpty && cn != null && cn.isNotEmpty) {
+        _contatoNome.text = cn;
+      }
+      if (_contatoTelefone.text.trim().isEmpty &&
+          ct != null &&
+          ct.isNotEmpty) {
+        _contatoTelefone.text = ct;
+      }
     });
   }
 
   double _parseValor(String valor) {
-    return double.parse(valor.replaceAll('.', '').replaceAll(',', '.'));
+    if (valor.trim().isEmpty) return 0;
+    return double.tryParse(
+            valor.replaceAll('.', '').replaceAll(',', '.')) ??
+        0;
+  }
+
+  double get _valorTotalPreview {
+    final inicio = _horaInicio.text.split(':');
+    final fim = _horaFim.text.split(':');
+    if (inicio.length != 2 || fim.length != 2) return 0;
+    final hI = int.tryParse(inicio[0]);
+    final mI = int.tryParse(inicio[1]);
+    final hF = int.tryParse(fim[0]);
+    final mF = int.tryParse(fim[1]);
+    if (hI == null || mI == null || hF == null || mF == null) return 0;
+    final minutos = (hF * 60 + mF) - (hI * 60 + mI);
+    if (minutos <= 0) return 0;
+    return (minutos / 60.0) * _parseValor(_valorHora.text);
   }
 
   Future<void> _selecionarHora(TextEditingController controller) async {
     TimeOfDay initialTime = TimeOfDay.now();
-
     if (controller.text.contains(':')) {
       final partes = controller.text.split(':');
       if (partes.length == 2) {
@@ -111,13 +192,11 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
         initialTime = TimeOfDay(hour: h, minute: m);
       }
     }
-
     final picked = await showTimePicker(
       context: context,
       initialTime: initialTime,
       initialEntryMode: TimePickerEntryMode.input,
     );
-
     if (picked != null) {
       controller.text =
           '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
@@ -131,10 +210,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
     );
-
-    if (picked != null) {
-      setState(() => _dataSelecionada = picked);
-    }
+    if (picked != null) setState(() => _dataSelecionada = picked);
   }
 
   bool _validarCampos() {
@@ -144,11 +220,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
         _horaFim.text.trim().isEmpty ||
         _valorHora.text.trim().isEmpty ||
         _dataSelecionada == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Preencha todos os campos obrigatórios.'),
-        ),
-      );
+      _snack('Preencha todos os campos obrigatórios.');
       return false;
     }
     return true;
@@ -156,70 +228,66 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
 
   bool _temConflito(DateTime inicio, DateTime fim) {
     for (final escala in widget.escalasExistentes) {
-      // Ignora a própria escala ao editar
       if (widget.item != null && escala.id == widget.item!.id) continue;
-
-      // Compara apenas escalas do mesmo dia
       if (escala.data.year != inicio.year ||
           escala.data.month != inicio.month ||
-          escala.data.day != inicio.day) continue;
-
+          escala.data.day != inicio.day) {
+        continue;
+      }
       final partes = escala.horaInicio.split(':');
       final partesF = escala.horaFim.split(':');
       final eInicio = DateTime(inicio.year, inicio.month, inicio.day,
           int.parse(partes[0]), int.parse(partes[1]));
       final eFim = DateTime(inicio.year, inicio.month, inicio.day,
           int.parse(partesF[0]), int.parse(partesF[1]));
-
-      // Sobreposição: A < D && C < B
       if (inicio.isBefore(eFim) && eInicio.isBefore(fim)) return true;
     }
     return false;
   }
 
   Future<void> _garantirFavorito(
-      String endpoint, List<String> lista, String nome) async {
+    String endpoint,
+    List<String> lista,
+    String nome, {
+    Map<String, dynamic>? extra,
+  }) async {
     final n = nome.trim();
     if (n.isEmpty) return;
     if (!lista.contains(n)) {
-      await ApiService.post(endpoint, {'nome': n});
+      await ApiService.post(endpoint, {'nome': n, ...?extra});
+    } else if (endpoint == '/produtoras' && extra != null) {
+      // Atualiza contato da produtora existente.
+      final produtora = _produtorasFull.firstWhere(
+        (e) => (e['nome']?.toString() ?? '') == n,
+        orElse: () => <String, dynamic>{},
+      );
+      final id = produtora['id'];
+      if (id != null) {
+        await ApiService.put('/produtoras/$id', {'nome': n, ...extra});
+      }
     }
+  }
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Future<void> _salvar() async {
     if (!_validarCampos()) return;
-
     setState(() => _salvando = true);
 
     try {
       final inicio = _horaInicio.text.split(':');
       final fim = _horaFim.text.split(':');
-
-      final inicioDate = DateTime(
-        _dataSelecionada!.year,
-        _dataSelecionada!.month,
-        _dataSelecionada!.day,
-        int.parse(inicio[0]),
-        int.parse(inicio[1]),
-      );
-
-      final fimDate = DateTime(
-        _dataSelecionada!.year,
-        _dataSelecionada!.month,
-        _dataSelecionada!.day,
-        int.parse(fim[0]),
-        int.parse(fim[1]),
-      );
+      final inicioDate = DateTime(_dataSelecionada!.year, _dataSelecionada!.month,
+          _dataSelecionada!.day, int.parse(inicio[0]), int.parse(inicio[1]));
+      final fimDate = DateTime(_dataSelecionada!.year, _dataSelecionada!.month,
+          _dataSelecionada!.day, int.parse(fim[0]), int.parse(fim[1]));
 
       final diferencaMinutos = fimDate.difference(inicioDate).inMinutes;
-
       if (diferencaMinutos <= 0) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Hora fim deve ser maior que hora início.'),
-          ),
-        );
+        _snack('Hora fim deve ser maior que hora início.');
         setState(() => _salvando = false);
         return;
       }
@@ -227,27 +295,36 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
       final valorHoraDouble = _parseValor(_valorHora.text);
       final valorTotal = (diferencaMinutos / 60.0) * valorHoraDouble;
 
-      // Verifica conflito de horário com escalas existentes
       if (_temConflito(inicioDate, fimDate)) {
-        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Período indisponível! Já existe uma escala nesse horário.'),
-            backgroundColor: Colors.redAccent,
+            backgroundColor: AppColors.error,
           ),
         );
         setState(() => _salvando = false);
         return;
       }
 
+      final contatoExtra = <String, dynamic>{
+        if (_contatoNome.text.trim().isNotEmpty)
+          'contato_nome': _contatoNome.text.trim(),
+        if (_contatoTelefone.text.trim().isNotEmpty)
+          'contato_telefone': _contatoTelefone.text.trim(),
+      };
+
       await Future.wait([
-        _garantirFavorito('/produtoras', _produtorasSugeridas, _produtora.text),
+        _garantirFavorito(
+          '/produtoras',
+          _produtorasNomes,
+          _produtora.text,
+          extra: contatoExtra.isEmpty ? null : contatoExtra,
+        ),
         _garantirFavorito('/projetos', _projetosSugeridos, _projeto.text),
         if (_diretor.text.trim().isNotEmpty)
           _garantirFavorito('/diretores', _diretoresSugeridos, _diretor.text),
       ]);
 
-      final observacaoTexto = _observacao.text.trim();
       final body = {
         'projeto': _projeto.text.trim(),
         'produtora': _produtora.text.trim(),
@@ -258,7 +335,14 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
         'valor_hora': valorHoraDouble,
         'valor_total': valorTotal,
         'realizado': widget.item?.realizado ?? false,
-        if (observacaoTexto.isNotEmpty) 'observacao': observacaoTexto,
+        if (_observacao.text.trim().isNotEmpty)
+          'observacao': _observacao.text.trim(),
+        if (_tipoTrabalho.text.trim().isNotEmpty)
+          'tipo_trabalho': _tipoTrabalho.text.trim(),
+        if (_contatoNome.text.trim().isNotEmpty)
+          'contato_nome': _contatoNome.text.trim(),
+        if (_contatoTelefone.text.trim().isNotEmpty)
+          'contato_telefone': _contatoTelefone.text.trim(),
         'lembretes': _lembretes,
       };
 
@@ -269,21 +353,13 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
       if (!mounted) return;
 
       if (result['success'] != true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              result['error'] ?? 'Não foi possível salvar a escala.',
-            ),
-          ),
-        );
+        _snack(result['error'] ?? 'Não foi possível salvar a escala.');
         return;
       }
 
       final responseData = result['data'];
       final int id = widget.item == null
-          ? ((responseData is Map ? responseData['id'] as num? : null)
-                  ?.toInt() ??
-              0)
+          ? ((responseData is Map ? responseData['id'] as num? : null)?.toInt() ?? 0)
           : widget.item!.id;
 
       try {
@@ -299,13 +375,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
       } catch (e) {
         debugPrint('Erro ao agendar notificações: $e');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Escala salva, mas não foi possível agendar as notificações.',
-              ),
-            ),
-          );
+          _snack('Escala salva, mas não foi possível agendar as notificações.');
         }
       }
 
@@ -313,22 +383,351 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
       Navigator.pop(context);
     } catch (e) {
       debugPrint('Erro ao salvar escala: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao salvar a escala: $e')),
-      );
+      _snack('Erro ao salvar a escala: $e');
     } finally {
       if (mounted) setState(() => _salvando = false);
     }
   }
 
+  // ----------------------------------------------------------------
+  // UI
+  // ----------------------------------------------------------------
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final titulo = widget.item == null ? 'Nova Escala' : 'Editar Escala';
+    final secondaryColor = theme.brightness == Brightness.dark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+
+    return Scaffold(
+      appBar: AppBar(title: Text(titulo)),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: ListView(
+            children: [
+              const SizedBox(height: 8),
+
+              // ----- Bloco: dados do trabalho -----
+              _label('NOME DO PROJETO *', secondaryColor),
+              _autocomplete(
+                controller: _projeto,
+                sugestoes: _projetosSugeridos,
+                hint: 'Ex.: Cyberpunk: Edgerunners',
+              ),
+
+              _label('PRODUTORA *', secondaryColor),
+              _autocomplete(
+                controller: _produtora,
+                sugestoes: _produtorasNomes,
+                hint: 'Ex.: Unidub',
+                onSelected: _autoPreencherContato,
+              ),
+
+              _label('DIRETOR', secondaryColor),
+              _autocomplete(
+                controller: _diretor,
+                sugestoes: _diretoresSugeridos,
+                hint: 'Ex.: Wellington Lima',
+              ),
+
+              _label('TIPO DE TRABALHO', secondaryColor),
+              _autocomplete(
+                controller: _tipoTrabalho,
+                sugestoes: _tiposTrabalhoSugeridos,
+                hint: 'Loops, Voz Adicional, etc.',
+              ),
+
+              const SizedBox(height: 8),
+              _sectionCard(
+                theme,
+                title: 'CONTATO',
+                titleColor: secondaryColor,
+                child: Column(
+                  children: [
+                    _label('NOME', secondaryColor),
+                    TextField(
+                      controller: _contatoNome,
+                      decoration:
+                          const InputDecoration(hintText: 'Ex.: Maria Silva'),
+                    ),
+                    const SizedBox(height: 12),
+                    _label('TELEFONE', secondaryColor),
+                    TextField(
+                      controller: _contatoTelefone,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        hintText: '(11) 99999-9999',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+              _sectionCard(
+                theme,
+                title: 'AGENDAMENTO',
+                titleColor: secondaryColor,
+                child: Column(
+                  children: [
+                    _label('DATA *', secondaryColor),
+                    OutlinedButton.icon(
+                      onPressed: _selecionarData,
+                      icon: const Icon(Icons.calendar_today, size: 16),
+                      label: Text(
+                        _dataSelecionada == null
+                            ? 'Selecionar data'
+                            : DateFormat('EEEE, dd/MM/yyyy', 'pt_BR')
+                                .format(_dataSelecionada!),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        alignment: Alignment.centerLeft,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _label('INÍCIO *', secondaryColor),
+                              TextField(
+                                controller: _horaInicio,
+                                readOnly: true,
+                                onTap: () => _selecionarHora(_horaInicio),
+                                decoration: const InputDecoration(
+                                  hintText: 'HH:mm',
+                                  prefixIcon: Icon(Icons.access_time, size: 18),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _label('FIM *', secondaryColor),
+                              TextField(
+                                controller: _horaFim,
+                                readOnly: true,
+                                onTap: () => _selecionarHora(_horaFim),
+                                decoration: const InputDecoration(
+                                  hintText: 'HH:mm',
+                                  prefixIcon: Icon(Icons.access_time, size: 18),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+              _sectionCard(
+                theme,
+                title: 'VALOR',
+                titleColor: secondaryColor,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _label('VALOR / HORA (R\$) *', secondaryColor),
+                    TextField(
+                      controller: _valorHora,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: 'Ex.: 100,50',
+                        prefixText: 'R\$  ',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            'TOTAL PREVISTO',
+                            style: AppTheme.labelCaps(
+                              color: AppColors.secondary,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            NumberFormat.currency(
+                              locale: 'pt_BR',
+                              symbol: 'R\$',
+                            ).format(_valorTotalPreview),
+                            style: AppTheme.financialDisplay(
+                                    color: AppColors.secondary)
+                                .copyWith(fontSize: 24),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+              _sectionCard(
+                theme,
+                title: 'OBSERVAÇÕES',
+                titleColor: secondaryColor,
+                child: TextField(
+                  controller: _observacao,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    hintText: 'Ex.: levar texto impresso',
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // ----- Lembretes (collapse) -----
+              Container(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainer,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: theme.dividerColor),
+                ),
+                child: Column(
+                  children: [
+                    InkWell(
+                      onTap: () => setState(
+                        () => _mostrarLembretes = !_mostrarLembretes,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.notifications_outlined,
+                              size: 18,
+                              color: AppColors.primaryLight,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'LEMBRETES',
+                              style: AppTheme.labelCaps(color: secondaryColor),
+                            ),
+                            const Spacer(),
+                            Icon(
+                              _mostrarLembretes
+                                  ? Icons.expand_less
+                                  : Icons.expand_more,
+                              color: secondaryColor,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (_mostrarLembretes)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                        child: Column(
+                          children: _labelLembretes.entries
+                              .map(
+                                (e) => CheckboxListTile(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(
+                                    e.value,
+                                    style: theme.textTheme.bodyMedium,
+                                  ),
+                                  value: _lembretes[e.key] ?? false,
+                                  onChanged: (v) => setState(
+                                    () => _lembretes[e.key] = v ?? false,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _salvando ? null : _salvar,
+                  child: Text(_salvando ? 'Salvando...' : 'Salvar Escala'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancelar e Voltar'),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---- helpers ----
+
+  Widget _label(String text, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6, top: 12),
+      child: Text(text, style: AppTheme.labelCaps(color: color)),
+    );
+  }
+
+  Widget _sectionCard(
+    ThemeData theme, {
+    required String title,
+    required Color titleColor,
+    required Widget child,
+  }) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.dividerColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: AppTheme.labelCaps(color: titleColor)),
+          child,
+        ],
+      ),
+    );
+  }
+
   Widget _autocomplete({
-    required String label,
     required TextEditingController controller,
     required List<String> sugestoes,
+    String? hint,
+    void Function(String value)? onSelected,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 4),
       child: Autocomplete<String>(
         initialValue: TextEditingValue(text: controller.text),
         optionsBuilder: (v) {
@@ -336,7 +735,10 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
           if (input.isEmpty) return sugestoes;
           return sugestoes.where((s) => s.toLowerCase().contains(input));
         },
-        onSelected: (v) => controller.text = v,
+        onSelected: (v) {
+          controller.text = v;
+          if (onSelected != null) onSelected(v);
+        },
         fieldViewBuilder: (context, ctrl, focus, onSubmit) {
           controller.addListener(() {
             if (ctrl.text != controller.text) ctrl.text = controller.text;
@@ -345,19 +747,20 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
             controller: ctrl,
             focusNode: focus,
             onChanged: (v) => controller.text = v,
-            decoration: InputDecoration(labelText: label),
+            decoration: InputDecoration(hintText: hint),
           );
         },
         optionsViewBuilder: (context, onSelected, options) => Align(
           alignment: Alignment.topLeft,
           child: Material(
-            color: const Color(0xFF1E1E2E),
-            borderRadius: BorderRadius.circular(8),
+            color: Theme.of(context).colorScheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(12),
             elevation: 4,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 180),
+              constraints: const BoxConstraints(maxHeight: 220, maxWidth: 360),
               child: ListView.builder(
                 shrinkWrap: true,
+                padding: EdgeInsets.zero,
                 itemCount: options.length,
                 itemBuilder: (_, i) {
                   final opt = options.elementAt(i);
@@ -369,173 +772,6 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _campo(
-    String label,
-    TextEditingController c, {
-    VoidCallback? onTap,
-    String? hint,
-    int maxLines = 1,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextField(
-        controller: c,
-        readOnly: onTap != null,
-        onTap: onTap,
-        maxLines: maxLines,
-        decoration: InputDecoration(labelText: label, hintText: hint),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final titulo = widget.item == null ? 'Nova Escala' : 'Editar Escala';
-
-    return Scaffold(
-      appBar: AppBar(title: Text(titulo)),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: ListView(
-          children: [
-            // Campo Produtora com Autocomplete
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Autocomplete<String>(
-                initialValue: TextEditingValue(text: _produtora.text),
-                optionsBuilder: (textEditingValue) {
-                  final input = textEditingValue.text.toLowerCase();
-                  if (input.isEmpty) return _produtorasSugeridas;
-                  return _produtorasSugeridas
-                      .where((p) => p.toLowerCase().contains(input))
-                      .toList();
-                },
-                onSelected: (value) => _produtora.text = value,
-                fieldViewBuilder: (context, controller, focusNode, onSubmit) {
-                  _produtora.addListener(() {
-                    if (controller.text != _produtora.text) {
-                      controller.text = _produtora.text;
-                    }
-                  });
-                  return TextField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    onChanged: (v) => _produtora.text = v,
-                    decoration: const InputDecoration(labelText: 'Produtora *'),
-                  );
-                },
-                optionsViewBuilder: (context, onSelected, options) {
-                  return Align(
-                    alignment: Alignment.topLeft,
-                    child: Material(
-                      color: const Color(0xFF1E1E2E),
-                      borderRadius: BorderRadius.circular(8),
-                      elevation: 4,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 200),
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: options.length,
-                          itemBuilder: (context, i) {
-                            final option = options.elementAt(i);
-                            return ListTile(
-                              title: Text(option),
-                              onTap: () => onSelected(option),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            _autocomplete(
-              label: 'Projeto *',
-              controller: _projeto,
-              sugestoes: _projetosSugeridos,
-            ),
-            _autocomplete(
-              label: 'Diretor',
-              controller: _diretor,
-              sugestoes: _diretoresSugeridos,
-            ),
-            ElevatedButton(
-              onPressed: _selecionarData,
-              child: Text(
-                _dataSelecionada == null
-                    ? 'Selecionar Data'
-                    : DateFormat('dd/MM/yyyy').format(_dataSelecionada!),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _campo(
-              'Hora início *',
-              _horaInicio,
-              onTap: () => _selecionarHora(_horaInicio),
-              hint: 'HH:mm',
-            ),
-            _campo(
-              'Hora fim *',
-              _horaFim,
-              onTap: () => _selecionarHora(_horaFim),
-              hint: 'HH:mm',
-            ),
-            _campo('Valor/hora *', _valorHora, hint: 'Ex: 100,50'),
-            _campo('Observações', _observacao,
-                hint: 'Ex: levar texto impresso', maxLines: 3),
-            const SizedBox(height: 20),
-
-            // --- Seção Lembretes ---
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E1E2E),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.notifications_outlined,
-                          size: 16, color: Colors.white70),
-                      SizedBox(width: 8),
-                      Text(
-                        'Lembretes',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white70,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ..._labelLembretes.entries.map(
-                    (entry) => CheckboxListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(entry.value,
-                          style: const TextStyle(fontSize: 14)),
-                      value: _lembretes[entry.key] ?? false,
-                      onChanged: (v) => setState(
-                          () => _lembretes[entry.key] = v ?? false),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _salvando ? null : _salvar,
-              child: Text(_salvando ? 'Salvando...' : 'Salvar'),
-            ),
-          ],
         ),
       ),
     );
