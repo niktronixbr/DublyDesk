@@ -238,8 +238,12 @@ class _ContactRow extends StatelessWidget {
   Future<void> _abrirWhatsApp(String tel, BuildContext ctx) async {
     final numero = tel.replaceAll(RegExp(r'\D'), '');
     if (numero.isEmpty) return;
-    final comDdd =
-        numero.length <= 11 && !numero.startsWith('55') ? '55$numero' : numero;
+    // Brazilian numbers without country code: 10 digits (landline) or 11 digits (mobile).
+    // Numbers >= 12 digits are assumed to already carry a country code.
+    // Numbers < 10 digits are passed through unchanged.
+    final comDdd = (numero.length == 10 || numero.length == 11) && !numero.startsWith('55')
+        ? '55$numero'
+        : numero;
     final uri = Uri.parse('https://wa.me/$comDdd');
     try {
       final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -249,9 +253,10 @@ class _ContactRow extends StatelessWidget {
         );
       }
     } catch (e) {
+      debugPrint('Erro ao abrir WhatsApp: $e');
       if (ctx.mounted) {
         ScaffoldMessenger.of(ctx).showSnackBar(
-          SnackBar(content: Text('Erro ao abrir WhatsApp: $e')),
+          const SnackBar(content: Text('Não foi possível abrir o WhatsApp')),
         );
       }
     }
