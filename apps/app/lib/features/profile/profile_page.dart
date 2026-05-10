@@ -288,16 +288,17 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
           const SizedBox(height: 24),
-          OutlinedButton.icon(
+          ElevatedButton.icon(
             onPressed: _logout,
-            icon: const Icon(Icons.logout, color: AppColors.error),
-            label: const Text(
-              'Sair',
-              style: TextStyle(color: AppColors.error),
-            ),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.error),
+            icon: const Icon(Icons.logout, color: Colors.white),
+            label: const Text('Sair', style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
             ),
           ),
           const SizedBox(height: 24),
