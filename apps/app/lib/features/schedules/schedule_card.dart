@@ -46,10 +46,20 @@ class ScheduleCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: theme.brightness == Brightness.dark
-                    ? AppColors.darkTextSecondary.withValues(alpha: 0.5)
+                    ? AppColors.primary.withValues(alpha: 0.35)
                     : AppColors.lightOutline,
                 width: 1.5,
               ),
+              boxShadow: theme.brightness == Brightness.light
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.07),
+                        blurRadius: 10,
+                        spreadRadius: 0,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
