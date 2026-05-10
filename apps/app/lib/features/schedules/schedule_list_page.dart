@@ -523,24 +523,75 @@ class ScheduleListPageState extends State<ScheduleListPage> {
                   ],
                 );
 
-            Widget opcaoLista(
-              String label,
-              bool selected,
-              VoidCallback onTap,
-            ) =>
-                ListTile(
-                  title: Text(label, style: theme.textTheme.bodyMedium),
-                  trailing: selected
-                      ? const Icon(Icons.check, color: AppColors.primary)
-                      : null,
-                  onTap: onTap,
-                  dense: true,
+            Widget seletorFiltro({
+              required String valorAtual,
+              required List<String> opcoes,
+              required void Function(String) onSelecionar,
+            }) =>
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () async {
+                      final escolhido = await showDialog<String>(
+                        context: ctx,
+                        builder: (dialogCtx) => SimpleDialog(
+                          title: null,
+                          children: opcoes
+                              .map(
+                                (op) => SimpleDialogOption(
+                                  onPressed: () =>
+                                      Navigator.pop(dialogCtx, op),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(op,
+                                            style:
+                                                theme.textTheme.bodyMedium),
+                                      ),
+                                      if (op == valorAtual)
+                                        const Icon(Icons.check,
+                                            color: AppColors.primary,
+                                            size: 18),
+                                    ],
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      );
+                      if (escolhido != null) {
+                        setSheet(() => onSelecionar(escolhido));
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainer,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: theme.dividerColor),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(valorAtual,
+                                style: theme.textTheme.bodyMedium),
+                          ),
+                          Icon(Icons.chevron_right,
+                              color: theme.colorScheme.onSurfaceVariant,
+                              size: 20),
+                        ],
+                      ),
+                    ),
+                  ),
                 );
 
             return DraggableScrollableSheet(
               expand: false,
-              initialChildSize: 0.7,
-              maxChildSize: 0.92,
+              initialChildSize: 0.55,
+              maxChildSize: 0.75,
               builder: (_, scrollCtrl) => Column(
                 children: [
                   const SizedBox(height: 12),
@@ -580,30 +631,22 @@ class ScheduleListPageState extends State<ScheduleListPage> {
                       children: [
                         secao(
                           'PRODUTORA',
-                          Column(
-                            children: produtoras
-                                .map((p) => opcaoLista(
-                                      p,
-                                      tempProdutora == p,
-                                      () => setSheet(() => tempProdutora = p),
-                                    ))
-                                .toList(),
+                          seletorFiltro(
+                            valorAtual: tempProdutora,
+                            opcoes: produtoras,
+                            onSelecionar: (v) => tempProdutora = v,
                           ),
                         ),
                         secao(
                           'PROJETO',
-                          Column(
-                            children: projetos
-                                .map((p) => opcaoLista(
-                                      p,
-                                      tempProjeto == p,
-                                      () => setSheet(() => tempProjeto = p),
-                                    ))
-                                .toList(),
+                          seletorFiltro(
+                            valorAtual: tempProjeto,
+                            opcoes: projetos,
+                            onSelecionar: (v) => tempProjeto = v,
                           ),
                         ),
                         secao(
-                          'PERÍODO',
+                          'DATA',
                           Padding(
                             padding:
                                 const EdgeInsets.symmetric(horizontal: 20),
