@@ -726,11 +726,6 @@ class ScheduleListPageState extends State<ScheduleListPage> {
         futuras.add(s);
       }
     }
-    debugPrint(
-        '[Schedules] buckets H=${deHoje.length} SE=${estaSemana.length} '
-        'F=${futuras.length} A=${anteriores.length} '
-        '(filtered=${_filtered.length})');
-
     final secoes = <_Secao>[
       if (deHoje.isNotEmpty) _Secao('HOJE', deHoje),
       if (estaSemana.isNotEmpty) _Secao('ESTA SEMANA', estaSemana),
@@ -749,27 +744,7 @@ class ScheduleListPageState extends State<ScheduleListPage> {
         ? AppColors.darkTextSecondary
         : AppColors.lightTextSecondary;
 
-    final debugLine =
-        'DBG  filtered=${_filtered.length}  '
-        'H=${deHoje.length} SE=${estaSemana.length} '
-        'F=${futuras.length} A=${anteriores.length}  '
-        'items=${items.length}';
-
     final List<Widget> children = [
-      Container(
-        width: double.infinity,
-        color: const Color(0xFFFFE066),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Text(
-          debugLine,
-          style: const TextStyle(
-            color: Colors.black,
-            fontSize: 12,
-            fontFamily: 'monospace',
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
       const SizedBox(height: 4),
       for (final item in items)
         if (item is String)
@@ -780,23 +755,12 @@ class ScheduleListPageState extends State<ScheduleListPage> {
           )
         else
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-            child: Container(
-              height: 60,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEF4444),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '#${(item as ScheduleModel).id}  ${item.projeto}  '
-                '(${item.data.toLocal().day}/${item.data.toLocal().month})',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
-              ),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: ScheduleCard(
+              schedule: item as ScheduleModel,
+              onTap: () => _openForm(item: item),
+              onDelete: () => _confirmarDelete(item.id),
+              onToggleRealizado: () => _toggleRealizado(item),
             ),
           ),
       const SizedBox(height: 96),
