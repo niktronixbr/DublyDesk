@@ -27,6 +27,10 @@ class ScheduleListPageState extends State<ScheduleListPage> {
   /// Permite que o shell de navegação dispare um refresh externo.
   Future<void> refresh() => _fetchSchedules();
 
+  /// Recarrega os dados do usuário (nome + avatar) a partir do SharedPreferences.
+  /// Chamado pelo shell de navegação ao retornar à aba de Escalas.
+  Future<void> reloadUser() => _carregarUsuario();
+
   List<ScheduleModel> _schedules = [];
   List<ScheduleModel> _filtered = [];
 

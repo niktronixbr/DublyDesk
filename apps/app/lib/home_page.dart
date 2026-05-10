@@ -47,6 +47,11 @@ class _HomePageState extends State<HomePage> {
       _abrirNovo();
       return;
     }
+    // Ao retornar à aba de Escalas, recarrega o avatar do usuário para
+    // refletir qualquer upload feito na aba de Perfil durante a sessão.
+    if (i == 0) {
+      _scheduleListKey.currentState?.reloadUser();
+    }
     setState(() => _index = i);
   }
 
