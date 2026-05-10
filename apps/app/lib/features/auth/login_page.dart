@@ -203,7 +203,7 @@ class _LoginPageState extends State<LoginPage> {
                             child: Text(
                               'Esqueci minha senha',
                               style: AppTheme.labelCaps(
-                                color: AppColors.primaryLight,
+                                color: AppColors.primaryFor(theme.brightness),
                               ),
                             ),
                           ),

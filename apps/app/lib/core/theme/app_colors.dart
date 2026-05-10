@@ -34,4 +34,8 @@ class AppColors {
   // Aux helpers (status, charts)
   static const Color chartBar = primary;
   static const Color chartBarActive = primaryLight;
+
+  /// Cor primária legível: claro → primary (#494BD6), escuro → primaryLight (#C0C1FF).
+  static Color primaryFor(Brightness brightness) =>
+      brightness == Brightness.dark ? primaryLight : primary;
 }

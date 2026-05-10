@@ -267,13 +267,14 @@ class ScheduleListPageState extends State<ScheduleListPage> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: theme.colorScheme.surfaceContainer,
-              border: Border.all(color: AppColors.primaryLight, width: 1.5),
+              border: Border.all(
+                  color: AppColors.primaryFor(theme.brightness), width: 1.5),
             ),
             alignment: Alignment.center,
             child: Text(
               _iniciais,
-              style: theme.textTheme.labelLarge
-                  ?.copyWith(color: AppColors.primaryLight),
+              style: theme.textTheme.labelLarge?.copyWith(
+                  color: AppColors.primaryFor(theme.brightness)),
             ),
           ),
           const SizedBox(width: 12),
@@ -382,7 +383,7 @@ class ScheduleListPageState extends State<ScheduleListPage> {
               child: Text(
                 _resumoFiltros(),
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: AppColors.primaryLight,
+                  color: AppColors.primaryFor(theme.brightness),
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -419,7 +420,7 @@ class ScheduleListPageState extends State<ScheduleListPage> {
                 borderRadius: BorderRadius.circular(9999),
                 border: Border.all(
                   color: _temFiltroAtivo
-                      ? AppColors.primaryLight
+                      ? AppColors.primaryFor(theme.brightness)
                       : theme.colorScheme.outlineVariant,
                 ),
               ),
@@ -430,7 +431,7 @@ class ScheduleListPageState extends State<ScheduleListPage> {
                     Icons.tune,
                     size: 16,
                     color: _temFiltroAtivo
-                        ? AppColors.primaryLight
+                        ? AppColors.primaryFor(theme.brightness)
                         : theme.colorScheme.onSurface,
                   ),
                   const SizedBox(width: 6),
@@ -438,7 +439,7 @@ class ScheduleListPageState extends State<ScheduleListPage> {
                     'Filtros',
                     style: theme.textTheme.labelLarge?.copyWith(
                       color: _temFiltroAtivo
-                          ? AppColors.primaryLight
+                          ? AppColors.primaryFor(theme.brightness)
                           : theme.colorScheme.onSurface,
                     ),
                   ),
@@ -833,8 +834,8 @@ class _DatePickerTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(label,
-                      style: theme.textTheme.labelSmall
-                          ?.copyWith(color: AppColors.primaryLight)),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                          color: AppColors.primaryFor(theme.brightness))),
                   const SizedBox(height: 2),
                   Text(text, style: theme.textTheme.bodyMedium),
                 ],
@@ -846,8 +847,9 @@ class _DatePickerTile extends StatelessWidget {
                 child: const Icon(Icons.close, size: 16, color: AppColors.error),
               )
             else
-              const Icon(Icons.calendar_today_outlined,
-                  size: 16, color: AppColors.primaryLight),
+              Icon(Icons.calendar_today_outlined,
+                  size: 16,
+                  color: AppColors.primaryFor(theme.brightness)),
           ],
         ),
       ),
