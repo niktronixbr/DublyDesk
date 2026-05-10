@@ -30,8 +30,6 @@ class ScheduleCard extends StatelessWidget {
         : AppColors.lightTextSecondary;
 
     final realizado = schedule.realizado;
-    final borderColor =
-        realizado ? AppColors.secondary : AppColors.statusPending;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -42,7 +40,9 @@ class ScheduleCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Container(
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainer,
+              color: realizado
+                  ? AppColors.secondary.withValues(alpha: 0.10)
+                  : theme.colorScheme.surfaceContainer,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: theme.brightness == Brightness.dark
@@ -65,17 +65,6 @@ class ScheduleCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Borda esquerda colorida
-                  Container(
-                    width: 4,
-                    decoration: BoxDecoration(
-                      color: borderColor,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(16),
-                        bottomLeft: Radius.circular(16),
-                      ),
-                    ),
-                  ),
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
@@ -148,7 +137,14 @@ class ScheduleCard extends StatelessWidget {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              '${schedule.horaInicio} – ${schedule.horaFim}',
+                              () {
+                                try {
+                                  final dateStr = DateFormat('d MMM', 'pt_BR').format(schedule.data);
+                                  return '$dateStr · ${schedule.horaInicio} – ${schedule.horaFim}';
+                                } catch (_) {
+                                  return '${schedule.horaInicio} – ${schedule.horaFim}';
+                                }
+                              }(),
                               style: theme.textTheme.bodySmall,
                             ),
                             const Spacer(),
