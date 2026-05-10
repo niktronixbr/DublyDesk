@@ -242,4 +242,45 @@ class NotificationService {
     await init();
     await _notifications.cancelAll();
   }
+
+  // ---- Diagnóstico e teste (remover após validação) ----
+
+  /// Retorna informações sobre permissões e notificações pendentes.
+  static Future<Map<String, dynamic>> diagnostico() async {
+    await init();
+    final android = _notifications
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    final granted = await android?.areNotificationsEnabled() ?? false;
+    final pending = await _notifications.pendingNotificationRequests();
+    return {
+      'notificationsEnabled': granted,
+      'pendingCount': pending.length,
+      'pending': pending
+          .map((p) => {'id': p.id, 'title': p.title, 'body': p.body})
+          .toList(),
+    };
+  }
+
+  /// Agenda uma notificação de teste para 30 segundos no futuro.
+  static Future<void> agendarTeste() async {
+    await init();
+    final agora = tz.TZDateTime.now(tz.local);
+    await _notifications.zonedSchedule(
+      id: 99999,
+      title: 'Teste DublyDesk',
+      body: 'Esta notificação confirma que o agendamento funciona.',
+      scheduledDate: agora.add(const Duration(seconds: 30)),
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId,
+          _channelName,
+          channelDescription: _channelDescription,
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    );
+  }
 }
