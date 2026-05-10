@@ -34,7 +34,7 @@ class ScheduleCard extends StatelessWidget {
     // Cor verde para textos quando o card é realizado (escurece no light, clareia no dark)
     final accentGreen = realizado
         ? (theme.brightness == Brightness.dark
-            ? const Color(0xFF7FFBC7)       // verde claro vivo no dark
+            ? AppColors.secondaryLight       // verde claro vivo no dark
             : AppColors.secondaryDark)       // 0xFF00A572 — verde escuro no light
         : AppColors.secondary;
 

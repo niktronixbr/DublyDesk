@@ -27,6 +27,7 @@ class AppColors {
   static const Color primaryLight = Color(0xFFC0C1FF);
   static const Color secondary = Color(0xFF4EDEA3);
   static const Color secondaryDark = Color(0xFF00A572);
+  static const Color secondaryLight = Color(0xFF7FFBC7); // verde claro vivo (dark mode)
   static const Color statusPending = Color(0xFF64748B);
   static const Color error = Color(0xFFEF4444);
   static const Color tertiary = Color(0xFFFFB783);
