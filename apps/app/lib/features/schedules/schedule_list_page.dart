@@ -749,29 +749,55 @@ class ScheduleListPageState extends State<ScheduleListPage> {
         ? AppColors.darkTextSecondary
         : AppColors.lightTextSecondary;
 
-    return RefreshIndicator(
-      onRefresh: _fetchSchedules,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
-        itemCount: items.length,
-        itemBuilder: (context, index) {
-          final item = items[index];
-          if (item is String) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
-              child: Text(item,
-                  style: AppTheme.labelCaps(color: secondaryColor)),
-            );
-          }
-          final schedule = item as ScheduleModel;
-          return ScheduleCard(
-            schedule: schedule,
-            onTap: () => _openForm(item: schedule),
-            onDelete: () => _confirmarDelete(schedule.id),
-            onToggleRealizado: () => _toggleRealizado(schedule),
-          );
-        },
-      ),
+    final debugLine =
+        'DBG  filtered=${_filtered.length}  '
+        'H=${deHoje.length} SE=${estaSemana.length} '
+        'F=${futuras.length} A=${anteriores.length}  '
+        'items=${items.length}';
+
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          color: const Color(0xFFFFE066),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Text(
+            debugLine,
+            style: const TextStyle(
+              color: Colors.black,
+              fontSize: 12,
+              fontFamily: 'monospace',
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _fetchSchedules,
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final item = items[index];
+                if (item is String) {
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
+                    child: Text(item,
+                        style: AppTheme.labelCaps(color: secondaryColor)),
+                  );
+                }
+                final schedule = item as ScheduleModel;
+                return ScheduleCard(
+                  schedule: schedule,
+                  onTap: () => _openForm(item: schedule),
+                  onDelete: () => _confirmarDelete(schedule.id),
+                  onToggleRealizado: () => _toggleRealizado(schedule),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 

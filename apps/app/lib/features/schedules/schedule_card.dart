@@ -46,9 +46,9 @@ class ScheduleCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: theme.brightness == Brightness.dark
-                    ? Colors.white.withValues(alpha: 0.20)
-                    : Colors.black.withValues(alpha: 0.22),
-                width: 1.2,
+                    ? const Color(0xFF8E96B8)
+                    : const Color(0xFF8B8DA8),
+                width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
