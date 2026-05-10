@@ -15,6 +15,9 @@ class NotificationService {
   static const String _channelDescription =
       'Notificações de escalas de dublagem';
 
+  // ID de teste fora do alcance da fórmula de produção (baseId * 10 + [0..3]).
+  static const int _testeNotificationId = 2000000000;
+
   static Future<void> init() async {
     if (_initialized) return;
 
@@ -267,7 +270,7 @@ class NotificationService {
     await init();
     final agora = tz.TZDateTime.now(tz.local);
     await _notifications.zonedSchedule(
-      id: 99999,
+      id: _testeNotificationId,
       title: 'Teste DublyDesk',
       body: 'Esta notificação confirma que o agendamento funciona.',
       scheduledDate: agora.add(const Duration(seconds: 30)),
