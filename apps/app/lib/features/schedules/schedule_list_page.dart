@@ -641,7 +641,10 @@ class ScheduleListPageState extends State<ScheduleListPage> {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                    padding: EdgeInsets.fromLTRB(
+                      20, 8, 20,
+                      24 + MediaQuery.of(ctx).viewPadding.bottom,
+                    ),
                     child: SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
