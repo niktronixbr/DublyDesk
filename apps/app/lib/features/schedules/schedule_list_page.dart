@@ -399,7 +399,7 @@ class ScheduleListPageState extends State<ScheduleListPage> {
           if (_temFiltroAtivo) ...[
             Expanded(
               child: Text(
-                _resumoFiltros(),
+                '${_filtered.length} de ${_schedules.length} escalas',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AppColors.primaryFor(theme.brightness),
                 ),
@@ -420,7 +420,7 @@ class ScheduleListPageState extends State<ScheduleListPage> {
           ] else
             Expanded(
               child: Text(
-                'Sem filtros ativos',
+                '${_schedules.length} escalas',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: secondaryColor,
                 ),
@@ -468,19 +468,6 @@ class ScheduleListPageState extends State<ScheduleListPage> {
         ],
       ),
     );
-  }
-
-  String _resumoFiltros() {
-    final partes = <String>[];
-    if (_filtroProdutora != 'Todas') partes.add(_filtroProdutora);
-    if (_filtroProjeto != 'Todos') partes.add(_filtroProjeto);
-    if (_filtroDataInicio != null || _filtroDataFim != null) {
-      final fmt = DateFormat('dd/MM', 'pt_BR');
-      final ini = _filtroDataInicio != null ? fmt.format(_filtroDataInicio!) : '…';
-      final fim = _filtroDataFim != null ? fmt.format(_filtroDataFim!) : '…';
-      partes.add('$ini – $fim');
-    }
-    return partes.join(' · ');
   }
 
   void _abrirFiltros(ThemeData theme) {

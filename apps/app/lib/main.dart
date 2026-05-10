@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:local_auth/local_auth.dart';
 
 import 'auth_service.dart';
 import 'core/app_navigator.dart';
@@ -83,22 +84,30 @@ class _AuthGateState extends State<AuthGate> {
 
   Future<void> _checkSession() async {
     final token = await AuthService.getToken();
-    final remember = await AuthService.getRememberMe();
 
-    // Se "Lembrar de mim" foi desmarcado, exibe login sem apagar o token
-    // (token preservado para login por biometria).
-    if (token != null && token.isNotEmpty && !remember) {
+    if (token == null || token.isEmpty) {
       if (!mounted) return;
-      setState(() {
-        _logged = false;
-        _loading = false;
-      });
+      setState(() { _logged = false; _loading = false; });
       return;
     }
 
+    final remember = await AuthService.getRememberMe();
+
+    if (!remember) {
+      if (!mounted) return;
+      setState(() { _logged = false; _loading = false; });
+      return;
+    }
+
+    // rememberMe=true: auto-login apenas se o dispositivo não suporta biometria.
+    // Se suporta, mostra login page para que o botão de digital apareça.
+    final localAuth = LocalAuthentication();
+    final hasBiometrics = await localAuth.canCheckBiometrics;
+    final isSupported = await localAuth.isDeviceSupported();
+
     if (!mounted) return;
     setState(() {
-      _logged = token != null && token.isNotEmpty;
+      _logged = !(hasBiometrics && isSupported);
       _loading = false;
     });
   }

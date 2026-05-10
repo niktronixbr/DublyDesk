@@ -44,17 +44,17 @@ class ScheduleCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainer,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: theme.brightness == Brightness.dark
-                    ? AppColors.primary.withValues(alpha: 0.35)
-                    : AppColors.lightOutline,
-                width: 1.5,
-              ),
+              border: theme.brightness == Brightness.dark
+                  ? Border.all(
+                      color: AppColors.primaryLight.withValues(alpha: 0.55),
+                      width: 1.5,
+                    )
+                  : null,
               boxShadow: theme.brightness == Brightness.light
                   ? [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.07),
-                        blurRadius: 10,
+                        color: Colors.black.withValues(alpha: 0.09),
+                        blurRadius: 12,
                         spreadRadius: 0,
                         offset: const Offset(0, 2),
                       ),

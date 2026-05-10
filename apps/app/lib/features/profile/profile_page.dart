@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../auth_service.dart';
 import '../../core/app_navigator.dart';
@@ -22,11 +23,13 @@ class _ProfilePageState extends State<ProfilePage> {
   String _email = '';
   String? _avatarUrl;
   bool _uploading = false;
+  String _versao = '';
 
   @override
   void initState() {
     super.initState();
     _carregarUsuario();
+    _carregarVersao();
     widget.themeService.addListener(_onTheme);
   }
 
@@ -38,6 +41,12 @@ class _ProfilePageState extends State<ProfilePage> {
 
   void _onTheme() {
     if (mounted) setState(() {});
+  }
+
+  Future<void> _carregarVersao() async {
+    final info = await PackageInfo.fromPlatform();
+    if (!mounted) return;
+    setState(() => _versao = 'v${info.version}+${info.buildNumber}');
   }
 
   Future<void> _carregarUsuario() async {
@@ -294,7 +303,7 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(height: 24),
           Center(
             child: Text(
-              'DublyDesk · v1.0.0',
+              'DublyDesk · $_versao',
               style: AppTheme.labelCaps(
                 color: theme.brightness == Brightness.dark
                     ? AppColors.darkTextSecondary
