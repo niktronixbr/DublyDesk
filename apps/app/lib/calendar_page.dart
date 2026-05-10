@@ -129,6 +129,7 @@ class _CalendarPageState extends State<CalendarPage> {
                   color: theme.colorScheme.onSurface,
                 ),
               ),
+              daysOfWeekHeight: 36.0,
             ),
           ),
           Expanded(
