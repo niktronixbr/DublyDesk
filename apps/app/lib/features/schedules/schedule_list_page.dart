@@ -713,7 +713,9 @@ class ScheduleListPageState extends State<ScheduleListPage> {
     final futuras = <ScheduleModel>[];
 
     for (final s in _filtered) {
-      final dia = DateTime(s.data.year, s.data.month, s.data.day);
+      final dataLocal = s.data.toLocal();
+      final dia =
+          DateTime(dataLocal.year, dataLocal.month, dataLocal.day);
       if (dia.isBefore(inicioDia)) {
         anteriores.add(s);
       } else if (dia.isAtSameMomentAs(inicioDia)) {
@@ -724,6 +726,10 @@ class ScheduleListPageState extends State<ScheduleListPage> {
         futuras.add(s);
       }
     }
+    debugPrint(
+        '[Schedules] buckets H=${deHoje.length} SE=${estaSemana.length} '
+        'F=${futuras.length} A=${anteriores.length} '
+        '(filtered=${_filtered.length})');
 
     final secoes = <_Secao>[
       if (deHoje.isNotEmpty) _Secao('HOJE', deHoje),

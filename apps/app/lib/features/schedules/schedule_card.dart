@@ -44,22 +44,22 @@ class ScheduleCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainer,
               borderRadius: BorderRadius.circular(16),
-              border: theme.brightness == Brightness.dark
-                  ? Border.all(
-                      color: AppColors.primaryLight.withValues(alpha: 0.55),
-                      width: 1.5,
-                    )
-                  : null,
-              boxShadow: theme.brightness == Brightness.light
-                  ? [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.09),
-                        blurRadius: 12,
-                        spreadRadius: 0,
-                        offset: const Offset(0, 2),
-                      ),
-                    ]
-                  : null,
+              border: Border.all(
+                color: theme.brightness == Brightness.dark
+                    ? Colors.white.withValues(alpha: 0.20)
+                    : Colors.black.withValues(alpha: 0.22),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(
+                    alpha: theme.brightness == Brightness.dark ? 0.45 : 0.22,
+                  ),
+                  blurRadius: 10,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
