@@ -59,8 +59,9 @@ class _LoginPageState extends State<LoginPage> {
           ),
         );
       }
-    } catch (_) {
-      _snack('Biometria não disponível neste momento.');
+    } catch (e) {
+      debugPrint('Biometria erro: $e');
+      _snack('Biometria: $e');
     }
   }
 
@@ -98,6 +99,7 @@ class _LoginPageState extends State<LoginPage> {
         name: data['user']['name'],
         email: data['user']['email'],
         rememberMe: _rememberMe,
+        avatarUrl: data['user']['avatarUrl'] as String?,
       );
 
       if (!mounted) return;

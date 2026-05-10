@@ -10,6 +10,8 @@ import '../../core/services/theme_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../notification_service.dart';
+import '../../shared/widgets/user_avatar.dart';
+import '../profile/profile_page.dart';
 import 'schedule_card.dart';
 import 'schedule_form_page.dart';
 
@@ -31,6 +33,7 @@ class ScheduleListPageState extends State<ScheduleListPage> {
   bool _carregando = false;
   bool _isOffline = false;
   String _userName = '';
+  String? _avatarUrl;
 
   final _buscaController = TextEditingController();
   String _filtroProdutora = 'Todas';
@@ -55,8 +58,24 @@ class ScheduleListPageState extends State<ScheduleListPage> {
 
   Future<void> _carregarUsuario() async {
     final nome = await AuthService.getUserName();
+    final avatar = await AuthService.getAvatarUrl();
     if (!mounted) return;
-    setState(() => _userName = nome ?? '');
+    setState(() {
+      _userName = nome ?? '';
+      _avatarUrl = avatar;
+    });
+  }
+
+  Future<void> _abrirPerfil() async {
+    if (widget.themeService == null) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfilePage(themeService: widget.themeService!),
+      ),
+    );
+    if (!mounted) return;
+    _carregarUsuario();
   }
 
   Future<void> _fetchSchedules() async {
@@ -72,9 +91,17 @@ class ScheduleListPageState extends State<ScheduleListPage> {
           (responseData is Map && responseData.containsKey('data'))
               ? responseData['data'] as List
               : responseData as List;
-      final parsed = rawList
-          .map((e) => ScheduleModel.fromJson(e as Map<String, dynamic>))
-          .toList();
+
+      final parsed = <ScheduleModel>[];
+      for (final raw in rawList) {
+        try {
+          parsed.add(ScheduleModel.fromJson(raw as Map<String, dynamic>));
+        } catch (e) {
+          debugPrint('[Schedules] parse error: $e | raw=$raw');
+        }
+      }
+      debugPrint(
+          '[Schedules] received=${rawList.length} parsed=${parsed.length}');
 
       await ScheduleCacheService.save(parsed);
 
@@ -132,6 +159,15 @@ class ScheduleListPageState extends State<ScheduleListPage> {
 
     if (!mounted) return;
     setState(() => _filtered = lista);
+
+    debugPrint(
+        '[Schedules] filtros aplicados: ${lista.length}/${_schedules.length} '
+        '(produtora=$_filtroProdutora, projeto=$_filtroProjeto, '
+        'busca="${_buscaController.text}")');
+    for (final s in lista) {
+      debugPrint(
+          '  → id=${s.id} ${s.produtora}/${s.projeto} ${s.data.toIso8601String()}');
+    }
   }
 
   List<String> _produtorasDisponiveis() {
@@ -218,14 +254,6 @@ class ScheduleListPageState extends State<ScheduleListPage> {
     }
   }
 
-  String get _iniciais {
-    final partes = _userName.trim().split(RegExp(r'\s+'));
-    if (partes.isEmpty || partes.first.isEmpty) return '?';
-    if (partes.length == 1) return partes.first.characters.first.toUpperCase();
-    return (partes.first.characters.first + partes.last.characters.first)
-        .toUpperCase();
-  }
-
   // ----------------------------------------------------------------
   // UI
   // ----------------------------------------------------------------
@@ -261,21 +289,11 @@ class ScheduleListPageState extends State<ScheduleListPage> {
       titleSpacing: 16,
       title: Row(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: theme.colorScheme.surfaceContainer,
-              border: Border.all(
-                  color: AppColors.primaryFor(theme.brightness), width: 1.5),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              _iniciais,
-              style: theme.textTheme.labelLarge?.copyWith(
-                  color: AppColors.primaryFor(theme.brightness)),
-            ),
+          UserAvatar(
+            size: 40,
+            name: _userName,
+            avatarUrl: _avatarUrl,
+            onTap: _abrirPerfil,
           ),
           const SizedBox(width: 12),
           Text(

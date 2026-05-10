@@ -15,7 +15,7 @@ class AppColors {
   static const Color darkTextSecondary = Color(0xFF94A3B8);
 
   // -------- Light theme --------
-  static const Color lightBackground = Color(0xFFF4F3FF);
+  static const Color lightBackground = Color(0xFFECECF2);
   static const Color lightSurfaceCard = Color(0xFFFFFFFF);
   static const Color lightSurfaceContainer = Color(0xFFEDEBFF);
   static const Color lightOutline = Color(0xFFD8D6E8);

@@ -108,7 +108,7 @@ class AppTheme {
       tertiary: AppColors.tertiary,
       surface: AppColors.darkBackground,
       onSurface: AppColors.darkTextPrimary,
-      surfaceContainer: AppColors.darkSurfaceContainer,
+      surfaceContainer: AppColors.darkSurfaceCard,
       surfaceContainerHigh: AppColors.darkSurfaceContainerHigh,
       outline: AppColors.darkOutline,
       error: AppColors.error,
@@ -133,13 +133,13 @@ class AppTheme {
         ),
       ),
       cardTheme: CardThemeData(
-        color: AppColors.darkSurfaceContainer,
+        color: AppColors.darkSurfaceCard,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.darkSurfaceContainer,
+        fillColor: AppColors.darkSurfaceCard,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,
@@ -192,11 +192,38 @@ class AppTheme {
         shape: CircleBorder(),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: AppColors.darkSurfaceContainer,
+        backgroundColor: AppColors.darkSurfaceCard,
         selectedItemColor: AppColors.primaryLight,
         unselectedItemColor: AppColors.darkTextSecondary,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: AppColors.darkSurfaceCard,
+        elevation: 0,
+        height: 72,
+        indicatorColor: AppColors.primary.withValues(alpha: 0.35),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: AppColors.primaryLight);
+          }
+          return const IconThemeData(color: Color(0xFFB9C2D2));
+        }),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return GoogleFonts.inter(
+              color: AppColors.primaryLight,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            );
+          }
+          return GoogleFonts.inter(
+            color: const Color(0xFFB9C2D2),
+            fontWeight: FontWeight.w500,
+            fontSize: 12,
+          );
+        }),
       ),
       dividerColor: AppColors.darkOutline,
       iconTheme: const IconThemeData(color: AppColors.darkTextPrimary),
@@ -214,7 +241,7 @@ class AppTheme {
       tertiary: AppColors.tertiary,
       surface: AppColors.lightBackground,
       onSurface: AppColors.lightTextPrimary,
-      surfaceContainer: AppColors.lightSurfaceContainer,
+      surfaceContainer: AppColors.lightSurfaceCard,
       surfaceContainerHigh: Color(0xFFFFFFFF),
       outline: AppColors.lightOutline,
       error: AppColors.error,
@@ -303,6 +330,33 @@ class AppTheme {
         unselectedItemColor: AppColors.lightTextSecondary,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        height: 72,
+        indicatorColor: AppColors.primary.withValues(alpha: 0.18),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: AppColors.primary);
+          }
+          return const IconThemeData(color: AppColors.lightTextSecondary);
+        }),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return GoogleFonts.inter(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            );
+          }
+          return GoogleFonts.inter(
+            color: AppColors.lightTextSecondary,
+            fontWeight: FontWeight.w500,
+            fontSize: 12,
+          );
+        }),
       ),
       dividerColor: AppColors.lightOutline,
       iconTheme: const IconThemeData(color: AppColors.lightTextPrimary),

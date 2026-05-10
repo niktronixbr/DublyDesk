@@ -54,12 +54,22 @@ class ScheduleModel {
       };
     }
 
+    final rawData = json['data'];
+    final DateTime parsedData;
+    try {
+      parsedData = DateTime.parse(rawData.toString());
+    } catch (e) {
+      throw FormatException(
+          'ScheduleModel.fromJson: data inválida em id=${json['id']} '
+          '(valor: ${rawData.runtimeType}=$rawData) — $e');
+    }
+
     return ScheduleModel(
       id: (json['id'] as num).toInt(),
       projeto: json['projeto']?.toString() ?? '',
       produtora: json['produtora']?.toString() ?? '',
       diretor: json['diretor']?.toString(),
-      data: DateTime.parse(json['data'].toString()),
+      data: parsedData,
       horaInicio: json['hora_inicio']?.toString() ?? '',
       horaFim: json['hora_fim']?.toString() ?? '',
       valorHora: double.tryParse(json['valor_hora'].toString()) ?? 0,

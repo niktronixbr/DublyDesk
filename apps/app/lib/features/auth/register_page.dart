@@ -82,6 +82,7 @@ class _RegisterPageState extends State<RegisterPage> {
         name: (user is Map ? user['name']?.toString() : null) ?? '',
         email: (user is Map ? user['email']?.toString() : null) ??
             _email.text.trim(),
+        avatarUrl: user is Map ? user['avatarUrl'] as String? : null,
       );
 
       if (!mounted) return;

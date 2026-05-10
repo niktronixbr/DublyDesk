@@ -54,28 +54,28 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _index, children: _pages),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _index,
-        onTap: _onTabTapped,
-        items: const [
-          BottomNavigationBarItem(
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _index,
+        onDestinationSelected: _onTabTapped,
+        destinations: const [
+          NavigationDestination(
             icon: Icon(Icons.event_note_outlined),
-            activeIcon: Icon(Icons.event_note),
+            selectedIcon: Icon(Icons.event_note),
             label: 'Escalas',
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: Icon(Icons.add_circle_outline),
-            activeIcon: Icon(Icons.add_circle),
+            selectedIcon: Icon(Icons.add_circle),
             label: 'Novo',
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: Icon(Icons.attach_money_outlined),
-            activeIcon: Icon(Icons.attach_money),
+            selectedIcon: Icon(Icons.attach_money),
             label: 'Ganhos',
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
+            selectedIcon: Icon(Icons.person),
             label: 'Perfil',
           ),
         ],

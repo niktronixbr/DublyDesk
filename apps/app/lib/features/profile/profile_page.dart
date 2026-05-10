@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../auth_service.dart';
 import '../../core/app_navigator.dart';
+import '../../core/services/api_service.dart';
 import '../../core/services/theme_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/user_avatar.dart';
 
 class ProfilePage extends StatefulWidget {
   final ThemeService themeService;
@@ -17,6 +20,8 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   String _name = '';
   String _email = '';
+  String? _avatarUrl;
+  bool _uploading = false;
 
   @override
   void initState() {
@@ -38,19 +43,117 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _carregarUsuario() async {
     final n = await AuthService.getUserName();
     final e = await AuthService.getUserEmail();
+    final a = await AuthService.getAvatarUrl();
     if (!mounted) return;
     setState(() {
       _name = n ?? '';
       _email = e ?? '';
+      _avatarUrl = a;
     });
   }
 
-  String get _iniciais {
-    final partes = _name.trim().split(RegExp(r'\s+'));
-    if (partes.isEmpty || partes.first.isEmpty) return '?';
-    if (partes.length == 1) return partes.first.characters.first.toUpperCase();
-    return (partes.first.characters.first + partes.last.characters.first)
-        .toUpperCase();
+  Future<void> _abrirAvatarPicker() async {
+    if (_uploading) return;
+
+    final action = await showModalBottomSheet<_AvatarAction>(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: const Text('Tirar foto'),
+                onTap: () => Navigator.pop(ctx, _AvatarAction.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Escolher da galeria'),
+                onTap: () => Navigator.pop(ctx, _AvatarAction.gallery),
+              ),
+              if (_avatarUrl != null && _avatarUrl!.isNotEmpty)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline,
+                      color: AppColors.error),
+                  title: const Text('Remover foto',
+                      style: TextStyle(color: AppColors.error)),
+                  onTap: () => Navigator.pop(ctx, _AvatarAction.remove),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (action == null || !mounted) return;
+
+    if (action == _AvatarAction.remove) {
+      await _removerAvatar();
+    } else {
+      await _enviarAvatar(action == _AvatarAction.camera
+          ? ImageSource.camera
+          : ImageSource.gallery);
+    }
+  }
+
+  Future<void> _enviarAvatar(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      if (picked == null || !mounted) return;
+
+      setState(() => _uploading = true);
+
+      final result =
+          await ApiService.uploadFile('/auth/avatar', picked.path);
+
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        final url = (result['data'] as Map?)?['avatarUrl'] as String?;
+        await AuthService.saveAvatarUrl(url);
+        if (!mounted) return;
+        setState(() => _avatarUrl = url);
+        _snack('Foto atualizada.');
+      } else {
+        _snack(result['error']?.toString() ?? 'Erro ao enviar foto.');
+      }
+    } catch (e) {
+      debugPrint('Avatar upload error: $e');
+      if (mounted) _snack('Erro ao enviar foto: $e');
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  Future<void> _removerAvatar() async {
+    setState(() => _uploading = true);
+    try {
+      final result = await ApiService.delete('/auth/avatar');
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        await AuthService.saveAvatarUrl(null);
+        if (!mounted) return;
+        setState(() => _avatarUrl = null);
+        _snack('Foto removida.');
+      } else {
+        _snack(result['error']?.toString() ?? 'Erro ao remover foto.');
+      }
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Future<void> _logout() async {
@@ -89,22 +192,35 @@ class _ProfilePageState extends State<ProfilePage> {
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         children: [
           Center(
-            child: Container(
-              width: 96,
-              height: 96,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: theme.colorScheme.surfaceContainer,
-                border: Border.all(color: AppColors.primaryLight, width: 2),
-              ),
+            child: Stack(
               alignment: Alignment.center,
-              child: Text(
-                _iniciais,
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  color: AppColors.primaryLight,
-                  fontWeight: FontWeight.w700,
+              children: [
+                UserAvatar(
+                  size: 96,
+                  name: _name,
+                  avatarUrl: _avatarUrl,
+                  borderWidth: 2,
+                  onTap: _uploading ? null : _abrirAvatarPicker,
                 ),
-              ),
+                if (_uploading)
+                  Container(
+                    width: 96,
+                    height: 96,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black45,
+                    ),
+                    alignment: Alignment.center,
+                    child: const SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2.4,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
@@ -191,3 +307,5 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 }
+
+enum _AvatarAction { camera, gallery, remove }

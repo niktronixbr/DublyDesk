@@ -79,6 +79,28 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>> uploadFile(
+    String endpoint,
+    String filePath, {
+    String fieldName = 'avatar',
+  }) async {
+    try {
+      final token = await AuthService.getToken();
+      final request =
+          http.MultipartRequest('POST', Uri.parse('$baseUrl$endpoint'));
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      request.files.add(await http.MultipartFile.fromPath(fieldName, filePath));
+      final streamed = await request.send().timeout(_timeout);
+      final response = await http.Response.fromStream(streamed);
+      return _handle(response);
+    } catch (e) {
+      debugPrint('ApiService UPLOAD $endpoint: $e');
+      return {'success': false, 'error': 'Falha no upload.', 'data': null};
+    }
+  }
+
   static Map<String, dynamic> _handle(http.Response response) {
     if (response.statusCode == 401) {
       AuthService.logout().then((_) {

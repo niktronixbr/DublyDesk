@@ -7,18 +7,39 @@ class AuthService {
   static const _userNameKey = 'user_name';
   static const _userEmailKey = 'user_email';
   static const _rememberKey = 'auth_remember_me';
+  static const _avatarUrlKey = 'user_avatar_url';
 
   static Future<void> saveSession({
     required String token,
     required String name,
     required String email,
     bool rememberMe = true,
+    String? avatarUrl,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
     await prefs.setString(_userNameKey, name);
     await prefs.setString(_userEmailKey, email);
     await prefs.setBool(_rememberKey, rememberMe);
+    if (avatarUrl == null) {
+      await prefs.remove(_avatarUrlKey);
+    } else {
+      await prefs.setString(_avatarUrlKey, avatarUrl);
+    }
+  }
+
+  static Future<String?> getAvatarUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_avatarUrlKey);
+  }
+
+  static Future<void> saveAvatarUrl(String? url) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (url == null) {
+      await prefs.remove(_avatarUrlKey);
+    } else {
+      await prefs.setString(_avatarUrlKey, url);
+    }
   }
 
   static Future<bool> getRememberMe() async {
@@ -60,6 +81,7 @@ class AuthService {
     await prefs.remove(_userNameKey);
     await prefs.remove(_userEmailKey);
     await prefs.remove(_rememberKey);
+    await prefs.remove(_avatarUrlKey);
     await prefs.remove('schedules_cache');
   }
 
