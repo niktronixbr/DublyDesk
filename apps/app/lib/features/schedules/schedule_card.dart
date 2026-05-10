@@ -201,8 +201,18 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final solidoNoLight = realizado && theme.brightness == Brightness.light;
     final color = realizado ? AppColors.secondary : AppColors.statusPending;
     final label = realizado ? 'REALIZADO' : 'PENDENTE';
+
+    final fillColor = solidoNoLight
+        ? AppColors.secondaryDark
+        : color.withValues(alpha: 0.15);
+    final borderColor = solidoNoLight
+        ? AppColors.secondaryDark
+        : color.withValues(alpha: 0.6);
+    final textColor = solidoNoLight ? Colors.white : color;
 
     return InkWell(
       onTap: onTap,
@@ -210,13 +220,13 @@ class _StatusBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
+          color: fillColor,
           borderRadius: BorderRadius.circular(9999),
-          border: Border.all(color: color.withValues(alpha: 0.6)),
+          border: Border.all(color: borderColor),
         ),
         child: Text(
           label,
-          style: AppTheme.labelCaps(color: color),
+          style: AppTheme.labelCaps(color: textColor),
         ),
       ),
     );
