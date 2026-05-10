@@ -44,7 +44,7 @@ class AuthService {
 
   static Future<bool> getRememberMe() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_rememberKey) ?? true;
+    return prefs.getBool(_rememberKey) ?? false;
   }
 
   static Future<String?> getToken() async {
