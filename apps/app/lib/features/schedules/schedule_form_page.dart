@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 import '../../core/models/schedule_model.dart';
 import '../../core/services/api_service.dart';
@@ -47,6 +48,11 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
   final _tipoTrabalho = TextEditingController();
   final _contatoNome = TextEditingController();
   final _contatoTelefone = TextEditingController();
+  final _phoneMask = MaskTextInputFormatter(
+    mask: '(##) #####-####',
+    filter: {'#': RegExp(r'\d')},
+    type: MaskAutoCompletionType.lazy,
+  );
   final _valorHora = TextEditingController();
   final _horaInicio = TextEditingController();
   final _horaFim = TextEditingController();
@@ -76,7 +82,12 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
       _diretor.text = item.diretor ?? '';
       _tipoTrabalho.text = item.tipoTrabalho ?? '';
       _contatoNome.text = item.contatoNome ?? '';
-      _contatoTelefone.text = item.contatoTelefone ?? '';
+      final rawPhone = item.contatoTelefone ?? '';
+      _phoneMask.formatEditUpdate(
+        TextEditingValue.empty,
+        TextEditingValue(text: rawPhone),
+      );
+      _contatoTelefone.text = _phoneMask.getMaskedText();
       _valorHora.text = item.valorHora.toString().replaceAll('.', ',');
       _horaInicio.text = item.horaInicio;
       _horaFim.text = item.horaFim;
@@ -156,7 +167,11 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
       if (_contatoTelefone.text.trim().isEmpty &&
           ct != null &&
           ct.isNotEmpty) {
-        _contatoTelefone.text = ct;
+        _phoneMask.formatEditUpdate(
+          TextEditingValue.empty,
+          TextEditingValue(text: ct),
+        );
+        _contatoTelefone.text = _phoneMask.getMaskedText();
       }
     });
   }
@@ -458,6 +473,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
                     TextField(
                       controller: _contatoTelefone,
                       keyboardType: TextInputType.phone,
+                      inputFormatters: [_phoneMask],
                       decoration: const InputDecoration(
                         hintText: '(11) 99999-9999',
                       ),
