@@ -290,8 +290,8 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: _logout,
-            icon: const Icon(Icons.logout, color: Colors.white),
-            label: const Text('Sair', style: TextStyle(color: Colors.white)),
+            icon: const Icon(Icons.logout),
+            label: const Text('Sair'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
