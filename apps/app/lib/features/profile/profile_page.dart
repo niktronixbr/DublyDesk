@@ -8,7 +8,6 @@ import '../../core/services/api_service.dart';
 import '../../core/services/theme_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
-import '../../notification_service.dart';
 import '../../shared/widgets/user_avatar.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -288,97 +287,6 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
           ),
-          const SizedBox(height: 24),
-
-          // ---- Diagnóstico de notificações (remover após validação) ----
-          Container(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainer,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  leading: const Icon(
-                    Icons.notifications_active_outlined,
-                    color: AppColors.primaryLight,
-                  ),
-                  title: Text(
-                    'Testar notificação',
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: const Text('Dispara em 30 segundos'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    try {
-                      await NotificationService.agendarTeste();
-                      if (!mounted) return;
-                      messenger.showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Notificação de teste agendada para 30 segundos',
-                          ),
-                        ),
-                      );
-                    } catch (e) {
-                      if (!mounted) return;
-                      messenger.showSnackBar(
-                        SnackBar(content: Text('Erro: $e')),
-                      );
-                    }
-                  },
-                ),
-                Divider(
-                  height: 1,
-                  indent: 16,
-                  endIndent: 16,
-                  color: theme.dividerColor,
-                ),
-                ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  leading: const Icon(
-                    Icons.info_outline,
-                    color: AppColors.primaryLight,
-                  ),
-                  title: Text(
-                    'Diagnóstico de notificações',
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: const Text('Ver permissões e pendentes'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () async {
-                    final navigator = Navigator.of(context);
-                    final info = await NotificationService.diagnostico();
-                    if (!mounted) return;
-                    navigator.push<void>(
-                      MaterialPageRoute<void>(
-                        fullscreenDialog: true,
-                        builder: (_) => Scaffold(
-                          appBar: AppBar(title: const Text('Diagnóstico')),
-                          body: SingleChildScrollView(
-                            padding: const EdgeInsets.all(16),
-                            child: Text(
-                              'Notificações habilitadas: ${info['notificationsEnabled']}\n'
-                              'Pendentes: ${info['pendingCount']}\n\n'
-                              '${(info['pending'] as List).map((p) => '• [${p['id']}] ${p['title']}: ${p['body']}').join('\n')}',
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-          // ---- fim diagnóstico ----
-
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: _logout,
