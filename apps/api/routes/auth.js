@@ -26,7 +26,7 @@ const avatarUpload = multer({
   storage: avatarStorage,
   limits: { fileSize: 2 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
+    if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.mimetype)) {
       return cb(new Error('Formato inválido. Use JPG, PNG ou WebP.'));
     }
     cb(null, true);

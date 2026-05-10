@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import '../../api_config.dart';
 import '../../auth_service.dart';
@@ -91,7 +92,15 @@ class ApiService {
       if (token != null) {
         request.headers['Authorization'] = 'Bearer $token';
       }
-      request.files.add(await http.MultipartFile.fromPath(fieldName, filePath));
+      final ext = filePath.split('.').last.toLowerCase();
+      final mimeType = switch (ext) {
+        'png'  => MediaType('image', 'png'),
+        'webp' => MediaType('image', 'webp'),
+        _      => MediaType('image', 'jpeg'), // jpg, jpeg, tmp, no extension → jpeg
+      };
+      request.files.add(
+        await http.MultipartFile.fromPath(fieldName, filePath, contentType: mimeType),
+      );
       final streamed = await request.send().timeout(_timeout);
       final response = await http.Response.fromStream(streamed);
       return _handle(response);
