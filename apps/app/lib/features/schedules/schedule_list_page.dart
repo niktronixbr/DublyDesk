@@ -62,7 +62,7 @@ class ScheduleListPageState extends State<ScheduleListPage> {
   Future<void> _fetchSchedules() async {
     setState(() => _carregando = true);
 
-    final result = await ApiService.get('/schedules');
+    final result = await ApiService.get('/schedules?limit=500');
 
     if (!mounted) return;
 
