@@ -30,8 +30,12 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
-    _carregarDadosLembrados();
-    _verificarBiometria();
+    _init();
+  }
+
+  Future<void> _init() async {
+    await _carregarDadosLembrados();
+    await _verificarBiometria();
   }
 
   Future<void> _carregarDadosLembrados() async {

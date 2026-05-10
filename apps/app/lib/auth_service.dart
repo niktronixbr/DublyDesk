@@ -82,7 +82,7 @@ class AuthService {
 
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-    final remember = prefs.getBool(_rememberKey) ?? false;
+    final remember = await getRememberMe();
 
     // Limpar sessão (sempre)
     await prefs.remove(_tokenKey);
