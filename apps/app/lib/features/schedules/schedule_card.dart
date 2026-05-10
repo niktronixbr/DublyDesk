@@ -31,6 +31,13 @@ class ScheduleCard extends StatelessWidget {
 
     final realizado = schedule.realizado;
 
+    // Cor verde para textos quando o card é realizado (escurece no light, clareia no dark)
+    final accentGreen = realizado
+        ? (theme.brightness == Brightness.dark
+            ? const Color(0xFF7FFBC7)       // verde claro vivo no dark
+            : AppColors.secondaryDark)       // 0xFF00A572 — verde escuro no light
+        : AppColors.secondary;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
@@ -41,7 +48,9 @@ class ScheduleCard extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               color: realizado
-                  ? AppColors.secondary.withValues(alpha: 0.10)
+                  ? (theme.brightness == Brightness.dark
+                      ? AppColors.secondary.withValues(alpha: 0.22)
+                      : AppColors.secondary.withValues(alpha: 0.14))
                   : theme.colorScheme.surfaceContainer,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
@@ -122,6 +131,7 @@ class ScheduleCard extends StatelessWidget {
                             nome: schedule.contatoNome!,
                             telefone: schedule.contatoTelefone,
                             secondaryColor: secondaryColor,
+                            accentColor: accentGreen,
                           ),
                         ],
 
@@ -154,7 +164,7 @@ class ScheduleCard extends StatelessWidget {
                                 Text(
                                   _moeda.format(schedule.valorTotal),
                                   style: theme.textTheme.titleMedium?.copyWith(
-                                    color: AppColors.secondary,
+                                    color: accentGreen,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -217,10 +227,12 @@ class _ContactRow extends StatelessWidget {
   final String nome;
   final String? telefone;
   final Color secondaryColor;
+  final Color accentColor;
   const _ContactRow({
     required this.nome,
     required this.telefone,
     required this.secondaryColor,
+    required this.accentColor,
   });
 
   Future<void> _abrirWhatsApp(String tel) async {
@@ -260,18 +272,18 @@ class _ContactRow extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.chat_bubble_outline,
                     size: 12,
-                    color: AppColors.secondary,
+                    color: accentColor,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     tel,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppColors.secondary,
+                      color: accentColor,
                       decoration: TextDecoration.underline,
-                      decorationColor: AppColors.secondary,
+                      decorationColor: accentColor,
                     ),
                   ),
                 ],
