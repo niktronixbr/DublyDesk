@@ -1,12 +1,37 @@
 const crypto = require('crypto');
+const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const rateLimit = require('express-rate-limit');
+const multer = require('multer');
 const pool = require('../db');
+const auth = require('../middleware/auth');
 
 const router = express.Router();
+
+const AVATAR_DIR = path.join(__dirname, '..', 'uploads', 'avatars');
+
+const avatarStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, AVATAR_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    cb(null, `${req.user.id}-${Date.now()}${ext}`);
+  },
+});
+
+const avatarUpload = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
+      return cb(new Error('Formato inválido. Use JPG, PNG ou WebP.'));
+    }
+    cb(null, true);
+  },
+});
 
 const JWT_SECRET = process.env.JWT_SECRET || 'segredo_super_seguro';
 
@@ -40,7 +65,7 @@ router.post('/register', authLimiter, async (req, res) => {
     const result = await pool.query(
       `INSERT INTO users (name, email, password_hash)
        VALUES ($1, $2, $3)
-       RETURNING id, name, email`,
+       RETURNING id, name, email, avatar_url`,
       [name, email, passwordHash]
     );
 
@@ -52,7 +77,15 @@ router.post('/register', authLimiter, async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    res.json({ token, user });
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatarUrl: user.avatar_url,
+      },
+    });
   } catch (err) {
     console.error('POST /auth/register error:', err);
     res.status(500).json({ error: 'Erro ao cadastrar usuário' });
@@ -91,7 +124,12 @@ router.post('/login', authLimiter, async (req, res) => {
 
     res.json({
       token,
-      user: { id: user.id, name: user.name, email: user.email },
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatarUrl: user.avatar_url,
+      },
     });
   } catch (err) {
     console.error('POST /auth/login error:', err);
@@ -217,6 +255,98 @@ router.post('/reset-password', async (req, res) => {
   } catch (err) {
     console.error('POST /auth/reset-password error:', err);
     res.status(500).json({ error: 'Erro ao redefinir senha' });
+  }
+});
+
+// GET /auth/me — dados do usuário logado (incluindo avatar_url)
+router.get('/me', auth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, name, email, avatar_url FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    const user = result.rows[0];
+    res.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      avatarUrl: user.avatar_url,
+    });
+  } catch (err) {
+    console.error('GET /auth/me error:', err);
+    res.status(500).json({ error: 'Erro ao buscar usuário' });
+  }
+});
+
+// POST /auth/avatar — upload de foto de perfil (campo "avatar")
+router.post('/avatar', auth, (req, res) => {
+  avatarUpload.single('avatar')(req, res, async (err) => {
+    if (err) {
+      const message = err instanceof multer.MulterError
+        ? (err.code === 'LIMIT_FILE_SIZE' ? 'Imagem muito grande (máx 2MB)' : err.message)
+        : err.message;
+      return res.status(400).json({ error: message });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'Arquivo "avatar" não enviado' });
+    }
+
+    try {
+      const previous = await pool.query(
+        'SELECT avatar_url FROM users WHERE id = $1',
+        [req.user.id]
+      );
+
+      const url = `/uploads/avatars/${req.file.filename}`;
+      await pool.query(
+        'UPDATE users SET avatar_url = $1 WHERE id = $2',
+        [url, req.user.id]
+      );
+
+      // Remove a foto anterior do disco (se houver e for arquivo local).
+      const oldUrl = previous.rows[0]?.avatar_url;
+      if (oldUrl && oldUrl.startsWith('/uploads/avatars/')) {
+        const oldPath = path.join(__dirname, '..', oldUrl);
+        fs.unlink(oldPath, () => {});
+      }
+
+      res.json({ avatarUrl: url });
+    } catch (dbErr) {
+      console.error('POST /auth/avatar error:', dbErr);
+      res.status(500).json({ error: 'Erro ao salvar foto de perfil' });
+    }
+  });
+});
+
+// DELETE /auth/avatar — remove a foto de perfil
+router.delete('/avatar', auth, async (req, res) => {
+  try {
+    const previous = await pool.query(
+      'SELECT avatar_url FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    await pool.query(
+      'UPDATE users SET avatar_url = NULL WHERE id = $1',
+      [req.user.id]
+    );
+
+    const oldUrl = previous.rows[0]?.avatar_url;
+    if (oldUrl && oldUrl.startsWith('/uploads/avatars/')) {
+      const oldPath = path.join(__dirname, '..', oldUrl);
+      fs.unlink(oldPath, () => {});
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('DELETE /auth/avatar error:', err);
+    res.status(500).json({ error: 'Erro ao remover foto de perfil' });
   }
 });
 

@@ -1,6 +1,12 @@
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const pool = require('./db');
+
+// Garante que a pasta de avatares existe (se um volume foi montado em /app/uploads
+// pelo EasyPanel, ele vem vazio e o multer falharia sem essa pasta).
+fs.mkdirSync(path.join(__dirname, 'uploads', 'avatars'), { recursive: true });
 
 const authRoutes = require('./routes/auth');
 const schedulesRoutes = require('./routes/schedules');
@@ -19,6 +25,8 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 async function createTables() {
   try {
@@ -144,6 +152,12 @@ async function createTables() {
     await pool.query(`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS contato_telefone TEXT`);
   } catch (err) {
     console.error('❌ Erro na migration schedules.tipo_trabalho/contato:', err);
+  }
+
+  try {
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
+  } catch (err) {
+    console.error('❌ Erro na migration users.avatar_url:', err);
   }
 }
 
