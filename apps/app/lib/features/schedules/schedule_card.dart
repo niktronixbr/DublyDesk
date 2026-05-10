@@ -235,14 +235,25 @@ class _ContactRow extends StatelessWidget {
     required this.accentColor,
   });
 
-  Future<void> _abrirWhatsApp(String tel) async {
+  Future<void> _abrirWhatsApp(String tel, BuildContext ctx) async {
     final numero = tel.replaceAll(RegExp(r'\D'), '');
     if (numero.isEmpty) return;
     final comDdd =
         numero.length <= 11 && !numero.startsWith('55') ? '55$numero' : numero;
     final uri = Uri.parse('https://wa.me/$comDdd');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok && ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          const SnackBar(content: Text('Não foi possível abrir o WhatsApp')),
+        );
+      }
+    } catch (e) {
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          SnackBar(content: Text('Erro ao abrir WhatsApp: $e')),
+        );
+      }
     }
   }
 
@@ -265,10 +276,10 @@ class _ContactRow extends StatelessWidget {
         if (tel != null && tel.isNotEmpty) ...[
           const SizedBox(width: 8),
           InkWell(
-            onTap: () => _abrirWhatsApp(tel),
+            onTap: () => _abrirWhatsApp(tel, context),
             borderRadius: BorderRadius.circular(8),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
