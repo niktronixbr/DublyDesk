@@ -30,7 +30,20 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
+    _carregarDadosLembrados();
     _verificarBiometria();
+  }
+
+  Future<void> _carregarDadosLembrados() async {
+    final remember = await AuthService.getRememberMe();
+    if (!remember) return;
+    final email = await AuthService.getUserEmail();
+    if (email != null && email.isNotEmpty && mounted) {
+      setState(() {
+        _email.text = email;
+        _rememberMe = true;
+      });
+    }
   }
 
   Future<void> _verificarBiometria() async {
@@ -51,13 +64,16 @@ class _LoginPageState extends State<LoginPage> {
           biometricOnly: false,
         ),
       );
-      if (ok && mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => HomePage(themeService: ThemeService.instance),
-          ),
-        );
+      if (ok) {
+        await AuthService.setRememberMe(true);
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => HomePage(themeService: ThemeService.instance),
+            ),
+          );
+        }
       }
     } catch (e) {
       debugPrint('Biometria erro: $e');

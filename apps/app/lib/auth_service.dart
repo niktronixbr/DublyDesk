@@ -75,14 +75,27 @@ class AuthService {
     };
   }
 
+  static Future<void> setRememberMe(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_rememberKey, value);
+  }
+
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
+    final remember = prefs.getBool(_rememberKey) ?? false;
+
+    // Limpar sessão (sempre)
     await prefs.remove(_tokenKey);
     await prefs.remove(_userNameKey);
-    await prefs.remove(_userEmailKey);
-    await prefs.remove(_rememberKey);
     await prefs.remove(_avatarUrlKey);
     await prefs.remove('schedules_cache');
+
+    // Limpar email/remember somente se o usuário NÃO marcou "lembrar de mim"
+    if (!remember) {
+      await prefs.remove(_userEmailKey);
+      await prefs.remove(_rememberKey);
+    }
+    // else: deixar user_email e auth_remember_me intactos
   }
 
   static String? parseErrorBody(String body) {
