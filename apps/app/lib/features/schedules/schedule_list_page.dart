@@ -755,49 +755,48 @@ class ScheduleListPageState extends State<ScheduleListPage> {
         'F=${futuras.length} A=${anteriores.length}  '
         'items=${items.length}';
 
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          color: const Color(0xFFFFE066),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Text(
-            debugLine,
-            style: const TextStyle(
-              color: Colors.black,
-              fontSize: 12,
-              fontFamily: 'monospace',
-              fontWeight: FontWeight.w600,
-            ),
+    final List<Widget> children = [
+      Container(
+        width: double.infinity,
+        color: const Color(0xFFFFE066),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Text(
+          debugLine,
+          style: const TextStyle(
+            color: Colors.black,
+            fontSize: 12,
+            fontFamily: 'monospace',
+            fontWeight: FontWeight.w600,
           ),
         ),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: _fetchSchedules,
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                final item = items[index];
-                if (item is String) {
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
-                    child: Text(item,
-                        style: AppTheme.labelCaps(color: secondaryColor)),
-                  );
-                }
-                final schedule = item as ScheduleModel;
-                return ScheduleCard(
-                  schedule: schedule,
-                  onTap: () => _openForm(item: schedule),
-                  onDelete: () => _confirmarDelete(schedule.id),
-                  onToggleRealizado: () => _toggleRealizado(schedule),
-                );
-              },
+      ),
+      const SizedBox(height: 4),
+      for (final item in items)
+        if (item is String)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+            child:
+                Text(item, style: AppTheme.labelCaps(color: secondaryColor)),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: ScheduleCard(
+              schedule: item as ScheduleModel,
+              onTap: () => _openForm(item: item),
+              onDelete: () => _confirmarDelete(item.id),
+              onToggleRealizado: () => _toggleRealizado(item),
             ),
           ),
-        ),
-      ],
+      const SizedBox(height: 96),
+    ];
+
+    return RefreshIndicator(
+      onRefresh: _fetchSchedules,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: children,
+      ),
     );
   }
 
