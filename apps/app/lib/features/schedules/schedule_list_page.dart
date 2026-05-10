@@ -780,12 +780,23 @@ class ScheduleListPageState extends State<ScheduleListPage> {
           )
         else
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: ScheduleCard(
-              schedule: item as ScheduleModel,
-              onTap: () => _openForm(item: item),
-              onDelete: () => _confirmarDelete(item.id),
-              onToggleRealizado: () => _toggleRealizado(item),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            child: Container(
+              height: 60,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '#${(item as ScheduleModel).id}  ${item.projeto}  '
+                '(${item.data.toLocal().day}/${item.data.toLocal().month})',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
             ),
           ),
       const SizedBox(height: 96),
