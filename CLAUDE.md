@@ -2,7 +2,7 @@
 
 Aplicativo mobile para gestão de escalas e finanças de profissionais de dublagem. Monorepo com Flutter app (`apps/app`) e API Node.js/Express (`apps/api`), PostgreSQL como banco de dados.
 
-**Deploy:** API em `https://dublydesk.onrender.com` (Render). GitHub: `https://github.com/niktronixbr/DublyDesk`.
+**Deploy:** API em `https://dublydesk.niktronix.com.br` (VPS Hostinger via EasyPanel). GitHub: `https://github.com/niktronixbr/DublyDesk`.
 
 ## Estrutura
 
@@ -62,9 +62,11 @@ DATABASE_URL=postgresql://user:pass@host:5432/dublagem
 JWT_SECRET=seu_segredo_jwt
 FRONTEND_ORIGIN=*
 
-# Email (reset de senha)
-EMAIL_USER=email@gmail.com
-EMAIL_PASS=senha_app_gmail
+# Email SMTP (reset de senha) — variáveis usadas pelo código
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=email@gmail.com
+SMTP_PASS=senha_app_gmail
 
 # Docker (sem DATABASE_URL)
 POSTGRES_USER=postgres
@@ -80,6 +82,7 @@ POSTGRES_DB=dublagem
 | POST | `/auth/login` | Login → JWT |
 | POST | `/auth/forgot-password` | Envia código de 6 dígitos |
 | POST | `/auth/reset-password` | Redefine senha com código |
+| POST | `/auth/change-password` | Altera senha (requer JWT + senha atual) |
 | GET | `/schedules` | Lista escalas (paginado, filtros) |
 | POST | `/schedules` | Cria escala |
 | PUT | `/schedules/:id` | Atualiza escala |
@@ -90,7 +93,7 @@ POSTGRES_DB=dublagem
 | GET/POST | `/diretores` | Diretores do usuário |
 | GET | `/health` | Health check |
 
-Todas as rotas (exceto `/auth/*` e `/health`) requerem `Authorization: Bearer <token>`.
+Todas as rotas (exceto `/auth/register`, `/auth/login`, `/auth/forgot-password`, `/auth/reset-password` e `/health`) requerem `Authorization: Bearer <token>`.
 
 ## Banco de dados
 

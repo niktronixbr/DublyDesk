@@ -188,21 +188,28 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
         auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
       });
 
-      await transporter.sendMail({
-        from: `"DublyDesk" <${process.env.SMTP_USER}>`,
-        to: email,
-        subject: 'Redefinição de senha — DublyDesk',
-        text: `Seu código de redefinição de senha é: ${token}\n\nEsse código é válido por 1 hora.\nSe você não solicitou isso, ignore este email.`,
-        html: `
-          <div style="font-family:sans-serif;max-width:400px;margin:auto">
-            <h2>DublyDesk — Redefinição de senha</h2>
-            <p>Use o código abaixo no app para criar uma nova senha:</p>
-            <h1 style="letter-spacing:8px;color:#6C63FF">${token}</h1>
-            <p style="color:#888">Válido por 1 hora. Se não foi você, ignore este email.</p>
-          </div>`,
-      });
+      try {
+        console.log(`[SMTP] Enviando código para: ${email} | host: ${process.env.SMTP_HOST}:${process.env.SMTP_PORT || '587'}`);
+        await transporter.sendMail({
+          from: `"DublyDesk" <${process.env.SMTP_USER}>`,
+          to: email,
+          subject: 'Redefinição de senha — DublyDesk',
+          text: `Seu código de redefinição de senha é: ${token}\n\nEsse código é válido por 1 hora.\nSe você não solicitou isso, ignore este email.`,
+          html: `
+            <div style="font-family:sans-serif;max-width:400px;margin:auto">
+              <h2>DublyDesk — Redefinição de senha</h2>
+              <p>Use o código abaixo no app para criar uma nova senha:</p>
+              <h1 style="letter-spacing:8px;color:#6C63FF">${token}</h1>
+              <p style="color:#888">Válido por 1 hora. Se não foi você, ignore este email.</p>
+            </div>`,
+        });
+        console.log(`[SMTP] Email enviado com sucesso para: ${email}`);
+      } catch (smtpErr) {
+        console.error(`[SMTP ERROR] Falha ao enviar para ${email} | code: ${smtpErr.code} | msg: ${smtpErr.message}`);
+        throw smtpErr;
+      }
     } else {
-      // Sem SMTP configurado: exibe o código no log do servidor
+      console.warn('[SMTP] Variáveis SMTP_HOST/SMTP_USER/SMTP_PASS não configuradas — email não enviado.');
       console.log(`[DEV] Código de recuperação para ${email}: ${token}`);
     }
 
@@ -255,6 +262,47 @@ router.post('/reset-password', async (req, res) => {
   } catch (err) {
     console.error('POST /auth/reset-password error:', err);
     res.status(500).json({ error: 'Erro ao redefinir senha' });
+  }
+});
+
+// POST /auth/change-password — altera senha do usuário autenticado
+router.post('/change-password', auth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Senha atual e nova senha são obrigatórias' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'A nova senha deve ter pelo menos 6 caracteres' });
+  }
+
+  if (currentPassword === newPassword) {
+    return res.status(400).json({ error: 'A nova senha deve ser diferente da senha atual' });
+  }
+
+  try {
+    const result = await pool.query(
+      'SELECT password_hash FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    const passwordMatch = await bcrypt.compare(currentPassword, result.rows[0].password_hash);
+    if (!passwordMatch) {
+      return res.status(400).json({ error: 'Senha atual incorreta' });
+    }
+
+    const newHash = await bcrypt.hash(newPassword, 10);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, req.user.id]);
+
+    res.json({ message: 'Senha alterada com sucesso' });
+  } catch (err) {
+    console.error('POST /auth/change-password error:', err);
+    res.status(500).json({ error: 'Erro ao alterar senha' });
   }
 });
 
