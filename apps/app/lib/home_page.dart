@@ -21,11 +21,12 @@ class _HomePageState extends State<HomePage> {
   int _index = 0;
 
   final _calendarKey = GlobalKey<CalendarPageState>();
+  final _financeKey = GlobalKey<FinancePageState>();
 
   late final List<Widget> _pages = [
     CalendarPage(key: _calendarKey),
     const SizedBox.shrink(), // placeholder para a aba "Novo"
-    const FinancePage(),
+    FinancePage(key: _financeKey),
     ProfilePage(themeService: widget.themeService),
   ];
 
@@ -35,12 +36,16 @@ class _HomePageState extends State<HomePage> {
       MaterialPageRoute(builder: (_) => const ScheduleFormPage()),
     );
     _calendarKey.currentState?.refresh();
+    _financeKey.currentState?.refresh();
   }
 
   void _onTabTapped(int i) {
     if (i == 1) {
       _abrirNovo();
       return;
+    }
+    if (i == 2 && _index != 2) {
+      _financeKey.currentState?.refresh();
     }
     setState(() => _index = i);
   }

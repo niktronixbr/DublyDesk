@@ -1,32 +1,37 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/models/schedule_model.dart';
 import 'core/services/api_service.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 
+enum _PeriodoModo { semana, mes, ano }
+
 class FinancePage extends StatefulWidget {
   const FinancePage({super.key});
 
   @override
-  State<FinancePage> createState() => _FinancePageState();
+  State<FinancePage> createState() => FinancePageState();
 }
 
-class _FinancePageState extends State<FinancePage> {
+class FinancePageState extends State<FinancePage> {
   List<ScheduleModel> _schedules = [];
   bool _carregando = false;
-  int _mesSelecionado = DateTime.now().month;
-  int _anoSelecionado = DateTime.now().year;
+  _PeriodoModo _periodoModo = _PeriodoModo.mes;
+  DateTime _dataNavegacao = DateTime.now();
 
   final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
   @override
   void initState() {
     super.initState();
-    _fetch();
+    _carregarPeriodo().then((_) => _fetch());
   }
+
+  Future<void> refresh() => _fetch();
 
   Future<void> _fetch() async {
     setState(() => _carregando = true);
@@ -47,39 +52,132 @@ class _FinancePageState extends State<FinancePage> {
     if (mounted) setState(() => _carregando = false);
   }
 
-  // ---------- Cálculos ----------
-
-  List<ScheduleModel> get _realizadasDoMes => _schedules
-      .where((s) =>
-          s.realizado &&
-          s.data.month == _mesSelecionado &&
-          s.data.year == _anoSelecionado)
-      .toList();
-
-  double get _totalMes =>
-      _realizadasDoMes.fold(0, (soma, s) => soma + s.valorTotal);
-
-  double get _totalMesAnterior {
-    final prevMonth = _mesSelecionado == 1 ? 12 : _mesSelecionado - 1;
-    final prevYear =
-        _mesSelecionado == 1 ? _anoSelecionado - 1 : _anoSelecionado;
-    return _schedules
-        .where((s) =>
-            s.realizado && s.data.month == prevMonth && s.data.year == prevYear)
-        .fold(0, (soma, s) => soma + s.valorTotal);
+  Future<void> _carregarPeriodo() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('finance_period_mode');
+    if (saved != null && mounted) {
+      setState(() {
+        _periodoModo = _PeriodoModo.values.firstWhere(
+          (m) => m.name == saved,
+          orElse: () => _PeriodoModo.mes,
+        );
+      });
+    }
   }
 
-  /// Variação percentual entre mês selecionado e mês anterior.
-  /// Retorna null se o mês anterior não tem dados (sem comparação possível).
-  double? get _variacaoMensal {
-    final prev = _totalMesAnterior;
+  Future<void> _salvarPeriodo() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('finance_period_mode', _periodoModo.name);
+  }
+
+  // ---------- Navegação ----------
+
+  DateTime _semanaInicio(DateTime ref) =>
+      ref.subtract(Duration(days: ref.weekday - 1));
+
+  void _navAnterior() {
+    setState(() {
+      switch (_periodoModo) {
+        case _PeriodoModo.semana:
+          _dataNavegacao = _dataNavegacao.subtract(const Duration(days: 7));
+        case _PeriodoModo.mes:
+          _dataNavegacao =
+              DateTime(_dataNavegacao.year, _dataNavegacao.month - 1, 1);
+        case _PeriodoModo.ano:
+          _dataNavegacao = DateTime(_dataNavegacao.year - 1, 1, 1);
+      }
+    });
+  }
+
+  void _navProximo() {
+    setState(() {
+      switch (_periodoModo) {
+        case _PeriodoModo.semana:
+          _dataNavegacao = _dataNavegacao.add(const Duration(days: 7));
+        case _PeriodoModo.mes:
+          _dataNavegacao =
+              DateTime(_dataNavegacao.year, _dataNavegacao.month + 1, 1);
+        case _PeriodoModo.ano:
+          _dataNavegacao = DateTime(_dataNavegacao.year + 1, 1, 1);
+      }
+    });
+  }
+
+  // ---------- Cálculos ----------
+
+  List<ScheduleModel> get _realizadasDoPeriodo {
+    switch (_periodoModo) {
+      case _PeriodoModo.semana:
+        final ini = _semanaInicio(_dataNavegacao);
+        final fim = ini.add(const Duration(days: 7));
+        return _schedules
+            .where((s) =>
+                s.realizado &&
+                !DateTime(s.data.year, s.data.month, s.data.day)
+                    .isBefore(ini) &&
+                DateTime(s.data.year, s.data.month, s.data.day).isBefore(fim))
+            .toList();
+      case _PeriodoModo.mes:
+        return _schedules
+            .where((s) =>
+                s.realizado &&
+                s.data.month == _dataNavegacao.month &&
+                s.data.year == _dataNavegacao.year)
+            .toList();
+      case _PeriodoModo.ano:
+        return _schedules
+            .where((s) =>
+                s.realizado && s.data.year == _dataNavegacao.year)
+            .toList();
+    }
+  }
+
+  double get _totalPeriodo =>
+      _realizadasDoPeriodo.fold(0, (soma, s) => soma + s.valorTotal);
+
+  double get _totalPeriodoAnterior {
+    switch (_periodoModo) {
+      case _PeriodoModo.semana:
+        final ini =
+            _semanaInicio(_dataNavegacao).subtract(const Duration(days: 7));
+        final fim = ini.add(const Duration(days: 7));
+        return _schedules
+            .where((s) =>
+                s.realizado &&
+                !DateTime(s.data.year, s.data.month, s.data.day)
+                    .isBefore(ini) &&
+                DateTime(s.data.year, s.data.month, s.data.day).isBefore(fim))
+            .fold(0, (a, b) => a + b.valorTotal);
+      case _PeriodoModo.mes:
+        final prevMonth =
+            _dataNavegacao.month == 1 ? 12 : _dataNavegacao.month - 1;
+        final prevYear =
+            _dataNavegacao.month == 1
+                ? _dataNavegacao.year - 1
+                : _dataNavegacao.year;
+        return _schedules
+            .where((s) =>
+                s.realizado &&
+                s.data.month == prevMonth &&
+                s.data.year == prevYear)
+            .fold(0, (a, b) => a + b.valorTotal);
+      case _PeriodoModo.ano:
+        return _schedules
+            .where((s) =>
+                s.realizado && s.data.year == _dataNavegacao.year - 1)
+            .fold(0, (a, b) => a + b.valorTotal);
+    }
+  }
+
+  double? get _variacaoPeriodo {
+    final prev = _totalPeriodoAnterior;
     if (prev == 0) return null;
-    return ((_totalMes - prev) / prev) * 100;
+    return ((_totalPeriodo - prev) / prev) * 100;
   }
 
   double get _totalHoras {
     double soma = 0;
-    for (final s in _realizadasDoMes) {
+    for (final s in _realizadasDoPeriodo) {
       final inicio = s.horaInicio.split(':');
       final fim = s.horaFim.split(':');
       if (inicio.length != 2 || fim.length != 2) continue;
@@ -92,37 +190,87 @@ class _FinancePageState extends State<FinancePage> {
 
   String? get _melhorProdutora {
     final mapa = <String, double>{};
-    for (final s in _realizadasDoMes) {
+    for (final s in _realizadasDoPeriodo) {
       mapa[s.produtora] = (mapa[s.produtora] ?? 0) + s.valorTotal;
     }
     if (mapa.isEmpty) return null;
-    final entry = mapa.entries.reduce((a, b) => a.value > b.value ? a : b);
-    return entry.key;
+    return mapa.entries.reduce((a, b) => a.value > b.value ? a : b).key;
   }
 
-  /// Total por dia da semana atual (Seg=0..Dom=6) somando escalas realizadas
-  /// dentro da semana ISO em curso.
-  Map<int, double> _totaisDaSemana() {
-    final hoje = DateTime.now();
-    final inicioSemana = hoje.subtract(Duration(days: hoje.weekday - 1));
-    final fimSemana = inicioSemana.add(const Duration(days: 7));
-
+  Map<int, double> _totaisPorDiaDaSemana() {
+    final ini = _semanaInicio(_dataNavegacao);
+    final fim = ini.add(const Duration(days: 7));
     final map = <int, double>{for (var i = 0; i < 7; i++) i: 0};
     for (final s in _schedules) {
       if (!s.realizado) continue;
       final dt = DateTime(s.data.year, s.data.month, s.data.day);
-      final ini = DateTime(inicioSemana.year, inicioSemana.month, inicioSemana.day);
-      if (dt.isBefore(ini) || !dt.isBefore(fimSemana)) continue;
-      final idx = s.data.weekday - 1; // 0..6
+      if (dt.isBefore(ini) || !dt.isBefore(fim)) continue;
+      final idx = s.data.weekday - 1;
       map[idx] = (map[idx] ?? 0) + s.valorTotal;
     }
     return map;
   }
 
-  List<int> get _anosDisponiveis {
-    final anos = _schedules.map((s) => s.data.year).toSet().toList()..sort();
-    if (!anos.contains(DateTime.now().year)) anos.add(DateTime.now().year);
-    return anos;
+  Map<int, double> _totaisPorSemanasDoMes() {
+    final map = <int, double>{for (var i = 0; i < 5; i++) i: 0};
+    for (final s in _schedules) {
+      if (!s.realizado) continue;
+      if (s.data.month != _dataNavegacao.month ||
+          s.data.year != _dataNavegacao.year) {
+        continue;
+      }
+      final semana = (s.data.day - 1) ~/ 7;
+      map[semana] = (map[semana] ?? 0) + s.valorTotal;
+    }
+    return map;
+  }
+
+  Map<int, double> _totaisPorMesDoAno() {
+    final map = <int, double>{for (var i = 1; i <= 12; i++) i: 0};
+    for (final s in _schedules) {
+      if (!s.realizado) continue;
+      if (s.data.year != _dataNavegacao.year) continue;
+      map[s.data.month] = (map[s.data.month] ?? 0) + s.valorTotal;
+    }
+    return map;
+  }
+
+  String get _periodoLabel {
+    switch (_periodoModo) {
+      case _PeriodoModo.semana:
+        final ini = _semanaInicio(_dataNavegacao);
+        final fim = ini.add(const Duration(days: 6));
+        final fIni = DateFormat('dd MMM', 'pt_BR');
+        final fFim = DateFormat('dd MMM yyyy', 'pt_BR');
+        return '${fIni.format(ini)} – ${fFim.format(fim)}';
+      case _PeriodoModo.mes:
+        return '${_nomeMes(_dataNavegacao.month)} ${_dataNavegacao.year}';
+      case _PeriodoModo.ano:
+        return '${_dataNavegacao.year}';
+    }
+  }
+
+  String get _periodoLabelCurto {
+    switch (_periodoModo) {
+      case _PeriodoModo.semana:
+        return 'NA SEMANA';
+      case _PeriodoModo.mes:
+        return 'NO MÊS';
+      case _PeriodoModo.ano:
+        return 'NO ANO';
+    }
+  }
+
+  String get _countLabel {
+    final count = _realizadasDoPeriodo.length;
+    switch (_periodoModo) {
+      case _PeriodoModo.semana:
+        return '$count na semana';
+      case _PeriodoModo.mes:
+        return '$count no mês';
+      case _PeriodoModo.ano:
+        return '$count no ano';
+    }
   }
 
   String _nomeMes(int mes) {
@@ -169,12 +317,12 @@ class _FinancePageState extends State<FinancePage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
           children: [
+            _buildPeriodoSelector(theme, secondaryColor),
+            const SizedBox(height: 24),
             _buildHeader(theme, secondaryColor),
             const SizedBox(height: 24),
-            _buildSemanaChart(theme, secondaryColor),
+            _buildGrafico(theme, secondaryColor),
             const SizedBox(height: 24),
-            _buildFiltroMes(theme, secondaryColor),
-            const SizedBox(height: 16),
             _buildEscalasRealizadas(theme, secondaryColor),
             const SizedBox(height: 24),
             _buildFooterStats(theme, secondaryColor),
@@ -184,14 +332,68 @@ class _FinancePageState extends State<FinancePage> {
     );
   }
 
+  Widget _buildPeriodoSelector(ThemeData theme, Color secondaryColor) {
+    return Column(
+      children: [
+        SegmentedButton<_PeriodoModo>(
+          style: SegmentedButton.styleFrom(
+            selectedBackgroundColor: AppColors.primary,
+            selectedForegroundColor: Colors.white,
+          ),
+          segments: const [
+            ButtonSegment(
+              value: _PeriodoModo.semana,
+              label: Text('Semana'),
+            ),
+            ButtonSegment(
+              value: _PeriodoModo.mes,
+              label: Text('Mês'),
+            ),
+            ButtonSegment(
+              value: _PeriodoModo.ano,
+              label: Text('Ano'),
+            ),
+          ],
+          selected: {_periodoModo},
+          onSelectionChanged: (s) {
+            if (s.isEmpty) return;
+            setState(() => _periodoModo = s.first);
+            _salvarPeriodo();
+          },
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.chevron_left),
+              onPressed: _navAnterior,
+            ),
+            Expanded(
+              child: Text(
+                _periodoLabel,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.chevron_right),
+              onPressed: _navProximo,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   Widget _buildHeader(ThemeData theme, Color secondaryColor) {
-    final variacao = _variacaoMensal;
+    final variacao = _variacaoPeriodo;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'TOTAL ACUMULADO (${_nomeMes(_mesSelecionado).toUpperCase()})',
+          'TOTAL ACUMULADO $_periodoLabelCurto',
           style: AppTheme.labelCaps(color: secondaryColor),
         ),
         const SizedBox(height: 8),
@@ -199,7 +401,7 @@ class _FinancePageState extends State<FinancePage> {
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
           child: Text(
-            _moeda.format(_totalMes),
+            _moeda.format(_totalPeriodo),
             style: AppTheme.financialDisplay(color: AppColors.secondary),
           ),
         ),
@@ -208,22 +410,104 @@ class _FinancePageState extends State<FinancePage> {
           _VariacaoBadge(variacao: variacao)
         else
           Text(
-            'Sem comparação com mês anterior',
+            'Sem comparação com período anterior',
             style: theme.textTheme.bodySmall?.copyWith(color: secondaryColor),
           ),
       ],
     );
   }
 
-  Widget _buildSemanaChart(ThemeData theme, Color secondaryColor) {
-    const labels = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'];
-    final dados = _totaisDaSemana();
-    final maxVal =
-        (dados.values.isEmpty ? 0 : dados.values.reduce((a, b) => a > b ? a : b))
-            .toDouble();
-    final maxY = maxVal == 0 ? 100.0 : maxVal * 1.25;
-    final hojeIdx = DateTime.now().weekday - 1;
+  Widget _buildGrafico(ThemeData theme, Color secondaryColor) {
+    switch (_periodoModo) {
+      case _PeriodoModo.semana:
+        return _buildGraficoSemana(theme, secondaryColor);
+      case _PeriodoModo.mes:
+        return _buildGraficoMes(theme, secondaryColor);
+      case _PeriodoModo.ano:
+        return _buildGraficoAno(theme, secondaryColor);
+    }
+  }
 
+  Widget _buildGraficoSemana(ThemeData theme, Color secondaryColor) {
+    const labels = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'];
+    final dados = _totaisPorDiaDaSemana();
+    final maxVal = dados.values.isEmpty
+        ? 0.0
+        : dados.values.reduce((a, b) => a > b ? a : b);
+    final maxY = maxVal == 0 ? 100.0 : maxVal * 1.25;
+    final refSemana = _semanaInicio(_dataNavegacao);
+    final hoje = DateTime.now();
+    final hojeIdx =
+        (DateTime(hoje.year, hoje.month, hoje.day).difference(refSemana).inDays)
+            .clamp(0, 6);
+
+    return _buildGraficoContainer(
+      theme: theme,
+      secondaryColor: secondaryColor,
+      title: 'DISTRIBUIÇÃO NA SEMANA',
+      maxY: maxY,
+      count: 7,
+      getValue: (i) => dados[i] ?? 0,
+      getLabel: (i) => labels[i],
+      highlightIndex: hojeIdx,
+    );
+  }
+
+  Widget _buildGraficoMes(ThemeData theme, Color secondaryColor) {
+    final dados = _totaisPorSemanasDoMes();
+    final maxVal = dados.values.isEmpty
+        ? 0.0
+        : dados.values.reduce((a, b) => a > b ? a : b);
+    final maxY = maxVal == 0 ? 100.0 : maxVal * 1.25;
+
+    return _buildGraficoContainer(
+      theme: theme,
+      secondaryColor: secondaryColor,
+      title: 'DISTRIBUIÇÃO NO MÊS',
+      maxY: maxY,
+      count: 5,
+      getValue: (i) => dados[i] ?? 0,
+      getLabel: (i) => 'S${i + 1}',
+      highlightIndex: -1,
+    );
+  }
+
+  Widget _buildGraficoAno(ThemeData theme, Color secondaryColor) {
+    const labels = [
+      'JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN',
+      'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ',
+    ];
+    final dados = _totaisPorMesDoAno();
+    final maxVal = dados.values.isEmpty
+        ? 0.0
+        : dados.values.reduce((a, b) => a > b ? a : b);
+    final maxY = maxVal == 0 ? 100.0 : maxVal * 1.25;
+    final hoje = DateTime.now();
+    final mesAtualIdx =
+        (_dataNavegacao.year == hoje.year) ? hoje.month - 1 : -1;
+
+    return _buildGraficoContainer(
+      theme: theme,
+      secondaryColor: secondaryColor,
+      title: 'DISTRIBUIÇÃO NO ANO',
+      maxY: maxY,
+      count: 12,
+      getValue: (i) => dados[i + 1] ?? 0,
+      getLabel: (i) => labels[i],
+      highlightIndex: mesAtualIdx,
+    );
+  }
+
+  Widget _buildGraficoContainer({
+    required ThemeData theme,
+    required Color secondaryColor,
+    required String title,
+    required double maxY,
+    required int count,
+    required double Function(int) getValue,
+    required String Function(int) getLabel,
+    required int highlightIndex,
+  }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -234,8 +518,7 @@ class _FinancePageState extends State<FinancePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('SEMANA ATUAL',
-              style: AppTheme.labelCaps(color: secondaryColor)),
+          Text(title, style: AppTheme.labelCaps(color: secondaryColor)),
           const SizedBox(height: 16),
           SizedBox(
             height: 160,
@@ -255,30 +538,36 @@ class _FinancePageState extends State<FinancePage> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 24,
-                      getTitlesWidget: (value, meta) => Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Text(
-                          labels[value.toInt() % 7],
-                          style: AppTheme.labelCaps(
-                            color: value.toInt() == hojeIdx
-                                ? AppColors.primaryLight
-                                : secondaryColor,
+                      getTitlesWidget: (value, meta) {
+                        final i = value.toInt();
+                        if (i < 0 || i >= count) {
+                          return const SizedBox.shrink();
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            getLabel(i),
+                            style: AppTheme.labelCaps(
+                              color: i == highlightIndex
+                                  ? AppColors.primaryLight
+                                  : secondaryColor,
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
                   ),
                 ),
-                barGroups: List.generate(7, (i) {
-                  final v = dados[i] ?? 0;
+                barGroups: List.generate(count, (i) {
+                  final v = getValue(i);
                   return BarChartGroupData(
                     x: i,
                     barRods: [
                       BarChartRodData(
                         toY: v,
-                        width: 18,
+                        width: count > 7 ? 14 : 18,
                         borderRadius: BorderRadius.circular(6),
-                        color: i == hojeIdx
+                        color: i == highlightIndex
                             ? AppColors.primaryLight
                             : AppColors.primary,
                       ),
@@ -293,75 +582,16 @@ class _FinancePageState extends State<FinancePage> {
     );
   }
 
-  Widget _buildFiltroMes(ThemeData theme, Color secondaryColor) {
-    return Row(
-      children: [
-        Expanded(
-          flex: 2,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainer,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: theme.dividerColor),
-            ),
-            child: DropdownButton<int>(
-              value: _mesSelecionado,
-              isExpanded: true,
-              dropdownColor: theme.colorScheme.surfaceContainer,
-              underline: const SizedBox(),
-              items: List.generate(12, (i) => i + 1)
-                  .map((m) =>
-                      DropdownMenuItem(value: m, child: Text(_nomeMes(m))))
-                  .toList(),
-              onChanged: (v) {
-                if (v == null) return;
-                setState(() => _mesSelecionado = v);
-              },
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainer,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: theme.dividerColor),
-            ),
-            child: DropdownButton<int>(
-              value: _anosDisponiveis.contains(_anoSelecionado)
-                  ? _anoSelecionado
-                  : _anosDisponiveis.last,
-              isExpanded: true,
-              dropdownColor: theme.colorScheme.surfaceContainer,
-              underline: const SizedBox(),
-              items: _anosDisponiveis
-                  .map((a) =>
-                      DropdownMenuItem(value: a, child: Text(a.toString())))
-                  .toList(),
-              onChanged: (v) {
-                if (v == null) return;
-                setState(() => _anoSelecionado = v);
-              },
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildEscalasRealizadas(ThemeData theme, Color secondaryColor) {
     if (_carregando) {
-      return const Center(child: Padding(
+      return const Center(
+          child: Padding(
         padding: EdgeInsets.all(32),
         child: CircularProgressIndicator(),
       ));
     }
 
-    final lista = _realizadasDoMes
-      ..sort((a, b) => b.data.compareTo(a.data));
+    final lista = _realizadasDoPeriodo..sort((a, b) => b.data.compareTo(a.data));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -375,7 +605,7 @@ class _FinancePageState extends State<FinancePage> {
               ),
             ),
             Text(
-              '${lista.length} no mês',
+              _countLabel,
               style: AppTheme.labelCaps(color: secondaryColor),
             ),
           ],
@@ -391,7 +621,7 @@ class _FinancePageState extends State<FinancePage> {
             ),
             child: Center(
               child: Text(
-                'Nenhuma escala realizada neste mês.',
+                'Nenhuma escala realizada neste período.',
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(color: secondaryColor),
               ),
@@ -461,7 +691,7 @@ class _VariacaoBadge extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Text(
-            '$sinal${variacao.toStringAsFixed(1)}% vs mês anterior',
+            '$sinal${variacao.toStringAsFixed(1)}% vs período anterior',
             style: AppTheme.labelCaps(color: color),
           ),
         ],
@@ -481,6 +711,9 @@ class _RealizadaTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final titulo = schedule.projeto.isNotEmpty
+        ? schedule.projeto
+        : schedule.produtora;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
@@ -495,7 +728,7 @@ class _RealizadaTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(schedule.projeto, style: theme.textTheme.titleMedium),
+                Text(titulo, style: theme.textTheme.titleMedium),
                 const SizedBox(height: 2),
                 Text(
                   schedule.diretor != null && schedule.diretor!.isNotEmpty
