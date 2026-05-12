@@ -32,11 +32,13 @@ enum _CalculoModo { horaCheia, proporcional, manual }
 class ScheduleFormPage extends StatefulWidget {
   final ScheduleModel? item;
   final List<ScheduleModel> escalasExistentes;
+  final DateTime? dataInicial;
 
   const ScheduleFormPage({
     super.key,
     this.item,
     this.escalasExistentes = const [],
+    this.dataInicial,
   });
 
   @override
@@ -78,6 +80,10 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
   void initState() {
     super.initState();
     _carregarSugestoes();
+
+    if (widget.dataInicial != null && widget.item == null) {
+      _dataSelecionada = widget.dataInicial;
+    }
 
     if (widget.item != null) {
       final item = widget.item!;

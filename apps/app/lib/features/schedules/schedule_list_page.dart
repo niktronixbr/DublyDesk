@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../auth_service.dart';
-import '../../calendar_page.dart';
 import '../../core/models/schedule_model.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/schedule_cache_service.dart';
@@ -316,16 +315,6 @@ class ScheduleListPageState extends State<ScheduleListPage> {
                   content: Text('Notificações em breve.')),
             );
           },
-        ),
-        IconButton(
-          tooltip: 'Calendário',
-          icon: const Icon(Icons.calendar_month_outlined),
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => CalendarPage(escalas: _schedules),
-            ),
-          ).then((_) => _fetchSchedules()),
         ),
         const SizedBox(width: 4),
       ],

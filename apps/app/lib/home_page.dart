@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'calendar_page.dart';
 import 'core/services/theme_service.dart';
 import 'features/profile/profile_page.dart';
 import 'features/schedules/schedule_form_page.dart';
-import 'features/schedules/schedule_list_page.dart';
 import 'finance_page.dart';
 
 /// Shell de navegação pós-login.
-/// Hospeda 4 abas: Escalas | Novo | Ganhos | Perfil.
+/// Hospeda 4 abas: Escalas (calendário) | Novo | Ganhos | Perfil.
 /// "Novo" abre o formulário via push e não muda o índice da aba.
 class HomePage extends StatefulWidget {
   final ThemeService themeService;
@@ -20,14 +20,10 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _index = 0;
 
-  // Key permite acionar reload das escalas após criar via "Novo".
-  final _scheduleListKey = GlobalKey<ScheduleListPageState>();
+  final _calendarKey = GlobalKey<CalendarPageState>();
 
   late final List<Widget> _pages = [
-    ScheduleListPage(
-      key: _scheduleListKey,
-      themeService: widget.themeService,
-    ),
+    CalendarPage(key: _calendarKey),
     const SizedBox.shrink(), // placeholder para a aba "Novo"
     const FinancePage(),
     ProfilePage(themeService: widget.themeService),
@@ -38,19 +34,13 @@ class _HomePageState extends State<HomePage> {
       context,
       MaterialPageRoute(builder: (_) => const ScheduleFormPage()),
     );
-    // Recarrega a lista após retornar.
-    _scheduleListKey.currentState?.refresh();
+    _calendarKey.currentState?.refresh();
   }
 
   void _onTabTapped(int i) {
     if (i == 1) {
       _abrirNovo();
       return;
-    }
-    // Ao retornar à aba de Escalas, recarrega o avatar do usuário para
-    // refletir qualquer upload feito na aba de Perfil durante a sessão.
-    if (i == 0 && i != _index) {
-      _scheduleListKey.currentState?.reloadUser();
     }
     setState(() => _index = i);
   }
@@ -64,8 +54,8 @@ class _HomePageState extends State<HomePage> {
         onDestinationSelected: _onTabTapped,
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.event_note_outlined),
-            selectedIcon: Icon(Icons.event_note),
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month),
             label: 'Escalas',
           ),
           NavigationDestination(
