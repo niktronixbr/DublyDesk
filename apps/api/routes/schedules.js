@@ -10,7 +10,7 @@ router.use(authMiddleware);
 // --- Validação ---
 
 const scheduleValidation = [
-  body('projeto').trim().notEmpty().withMessage('Projeto é obrigatório'),
+  body('projeto').optional().trim(),
   body('produtora').trim().notEmpty().withMessage('Produtora é obrigatória'),
   body('data').isISO8601().withMessage('Data inválida'),
   body('hora_inicio')
@@ -20,8 +20,11 @@ const scheduleValidation = [
     .matches(/^\d{2}:\d{2}$/)
     .withMessage('Hora fim inválida (formato HH:mm)'),
   body('valor_hora')
+    .isFloat({ min: 0 })
+    .withMessage('Valor/hora inválido'),
+  body('valor_total')
     .isFloat({ min: 0.01 })
-    .withMessage('Valor/hora deve ser maior que zero'),
+    .withMessage('Valor total deve ser maior que zero'),
   body('hora_fim').custom((horaFim, { req }) => {
     const inicio = req.body.hora_inicio;
     if (!inicio || !horaFim) return true;

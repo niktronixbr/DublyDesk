@@ -8,6 +8,11 @@ import '../../core/theme/app_theme.dart';
 
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
+bool _temInfoPendente(ScheduleModel s) =>
+    s.projeto.isEmpty ||
+    (s.diretor == null || s.diretor!.isEmpty) ||
+    (s.tipoTrabalho == null || s.tipoTrabalho!.isEmpty);
+
 class ScheduleCard extends StatelessWidget {
   final ScheduleModel schedule;
   final VoidCallback onTap;
@@ -86,8 +91,14 @@ class ScheduleCard extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                schedule.projeto,
-                                style: theme.textTheme.titleMedium,
+                                schedule.projeto.isNotEmpty
+                                    ? schedule.projeto
+                                    : schedule.produtora,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontStyle: schedule.projeto.isEmpty
+                                      ? FontStyle.italic
+                                      : null,
+                                ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -122,6 +133,12 @@ class ScheduleCard extends StatelessWidget {
                           style: theme.textTheme.bodySmall
                               ?.copyWith(color: secondaryColor),
                         ),
+
+                        // Badge "Info pendente" quando campos opcionais estão vazios
+                        if (_temInfoPendente(schedule)) ...[
+                          const SizedBox(height: 6),
+                          _InfoPendenteBadge(),
+                        ],
 
                         // Linha 3: contato (se preenchido)
                         if (schedule.contatoNome != null &&
@@ -228,6 +245,36 @@ class _StatusBadge extends StatelessWidget {
           label,
           style: AppTheme.labelCaps(color: textColor),
         ),
+      ),
+    );
+  }
+}
+
+class _InfoPendenteBadge extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.amber.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(9999),
+        border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.info_outline, size: 11, color: Colors.amber),
+          SizedBox(width: 4),
+          Text(
+            'INFO PENDENTE',
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              color: Colors.amber,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ],
       ),
     );
   }

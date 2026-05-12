@@ -27,6 +27,8 @@ const _labelLembretes = {
   'exato': 'No horário exato',
 };
 
+enum _CalculoModo { horaCheia, proporcional, manual }
+
 class ScheduleFormPage extends StatefulWidget {
   final ScheduleModel? item;
   final List<ScheduleModel> escalasExistentes;
@@ -54,10 +56,12 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
     type: MaskAutoCompletionType.lazy,
   );
   final _valorHora = TextEditingController();
+  final _valorTotalManual = TextEditingController();
   final _horaInicio = TextEditingController();
   final _horaFim = TextEditingController();
   final _observacao = TextEditingController();
 
+  _CalculoModo _modoCalculo = _CalculoModo.horaCheia;
   DateTime? _dataSelecionada;
   bool _salvando = false;
   bool _mostrarLembretes = false;
@@ -89,6 +93,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
       );
       _contatoTelefone.text = _phoneMask.getMaskedText();
       _valorHora.text = item.valorHora.toString().replaceAll('.', ',');
+      _valorTotalManual.text = item.valorTotal.toString().replaceAll('.', ',');
       _horaInicio.text = item.horaInicio;
       _horaFim.text = item.horaFim;
       _observacao.text = item.observacao ?? '';
@@ -97,6 +102,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
     }
 
     _valorHora.addListener(() => setState(() {}));
+    _valorTotalManual.addListener(() => setState(() {}));
     _horaInicio.addListener(() => setState(() {}));
     _horaFim.addListener(() => setState(() {}));
   }
@@ -110,6 +116,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
     _contatoNome.dispose();
     _contatoTelefone.dispose();
     _valorHora.dispose();
+    _valorTotalManual.dispose();
     _horaInicio.dispose();
     _horaFim.dispose();
     _observacao.dispose();
@@ -184,6 +191,9 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
   }
 
   double get _valorTotalPreview {
+    if (_modoCalculo == _CalculoModo.manual) {
+      return _parseValor(_valorTotalManual.text);
+    }
     final inicio = _horaInicio.text.split(':');
     final fim = _horaFim.text.split(':');
     if (inicio.length != 2 || fim.length != 2) return 0;
@@ -194,7 +204,11 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
     if (hI == null || mI == null || hF == null || mF == null) return 0;
     final minutos = (hF * 60 + mF) - (hI * 60 + mI);
     if (minutos <= 0) return 0;
-    return (minutos / 60.0) * _parseValor(_valorHora.text);
+    final valorHora = _parseValor(_valorHora.text);
+    if (_modoCalculo == _CalculoModo.horaCheia) {
+      return (minutos / 60.0).ceil() * valorHora;
+    }
+    return (minutos / 60.0) * valorHora;
   }
 
   Future<void> _selecionarHora(TextEditingController controller) async {
@@ -229,11 +243,14 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
   }
 
   bool _validarCampos() {
+    final valorPreenchido = _modoCalculo == _CalculoModo.manual
+        ? _valorTotalManual.text.trim().isNotEmpty
+        : _valorHora.text.trim().isNotEmpty;
+
     if (_produtora.text.trim().isEmpty ||
-        _projeto.text.trim().isEmpty ||
         _horaInicio.text.trim().isEmpty ||
         _horaFim.text.trim().isEmpty ||
-        _valorHora.text.trim().isEmpty ||
+        !valorPreenchido ||
         _dataSelecionada == null) {
       _snack('Preencha todos os campos obrigatórios.');
       return false;
@@ -307,8 +324,19 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
         return;
       }
 
-      final valorHoraDouble = _parseValor(_valorHora.text);
-      final valorTotal = (diferencaMinutos / 60.0) * valorHoraDouble;
+      final double valorHoraDouble;
+      final double valorTotal;
+      if (_modoCalculo == _CalculoModo.manual) {
+        valorTotal = _parseValor(_valorTotalManual.text);
+        valorHoraDouble = 0;
+      } else {
+        valorHoraDouble = _parseValor(_valorHora.text);
+        if (_modoCalculo == _CalculoModo.horaCheia) {
+          valorTotal = (diferencaMinutos / 60.0).ceil() * valorHoraDouble;
+        } else {
+          valorTotal = (diferencaMinutos / 60.0) * valorHoraDouble;
+        }
+      }
 
       if (_temConflito(inicioDate, fimDate)) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -426,7 +454,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
               const SizedBox(height: 8),
 
               // ----- Bloco: dados do trabalho -----
-              _label('NOME DO PROJETO *', secondaryColor),
+              _label('NOME DO PROJETO', secondaryColor),
               _autocomplete(
                 controller: _projeto,
                 sugestoes: _projetosSugeridos,
@@ -559,17 +587,59 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _label('VALOR / HORA (R\$) *', secondaryColor),
-                    TextField(
-                      controller: _valorHora,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        hintText: 'Ex.: 100,50',
-                        prefixText: 'R\$  ',
+                    _label('CÁLCULO', secondaryColor),
+                    const SizedBox(height: 8),
+                    SegmentedButton<_CalculoModo>(
+                      segments: const [
+                        ButtonSegment(
+                          value: _CalculoModo.horaCheia,
+                          label: Text('Hora cheia'),
+                          icon: Icon(Icons.access_time, size: 16),
+                        ),
+                        ButtonSegment(
+                          value: _CalculoModo.proporcional,
+                          label: Text('Proporcional'),
+                          icon: Icon(Icons.timelapse, size: 16),
+                        ),
+                        ButtonSegment(
+                          value: _CalculoModo.manual,
+                          label: Text('Manual'),
+                          icon: Icon(Icons.edit, size: 16),
+                        ),
+                      ],
+                      selected: {_modoCalculo},
+                      onSelectionChanged: (s) =>
+                          setState(() => _modoCalculo = s.first),
+                      style: const ButtonStyle(
+                        visualDensity: VisualDensity.compact,
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    if (_modoCalculo == _CalculoModo.manual) ...[
+                      _label('VALOR TOTAL (R\$) *', secondaryColor),
+                      TextField(
+                        controller: _valorTotalManual,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          hintText: 'Ex.: 150,00',
+                          prefixText: 'R\$  ',
+                        ),
+                      ),
+                    ] else ...[
+                      _label('VALOR / HORA (R\$) *', secondaryColor),
+                      TextField(
+                        controller: _valorHora,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          hintText: 'Ex.: 100,50',
+                          prefixText: 'R\$  ',
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.all(12),
