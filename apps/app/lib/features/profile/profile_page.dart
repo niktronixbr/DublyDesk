@@ -6,6 +6,7 @@ import '../../auth_service.dart';
 import '../../core/app_navigator.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/theme_service.dart';
+import '../auth/change_password_page.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/user_avatar.dart';
@@ -285,6 +286,33 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainer,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              leading: Icon(
+                Icons.lock_outline,
+                color: AppColors.primaryLight,
+              ),
+              title: Text(
+                'Alterar senha',
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ChangePasswordPage(),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 24),
