@@ -18,6 +18,7 @@ class ScheduleCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onDelete;
   final VoidCallback onToggleRealizado;
+  final bool compact;
 
   const ScheduleCard({
     super.key,
@@ -25,6 +26,7 @@ class ScheduleCard extends StatelessWidget {
     required this.onTap,
     required this.onDelete,
     required this.onToggleRealizado,
+    this.compact = false,
   });
 
   @override
@@ -44,7 +46,7 @@ class ScheduleCard extends StatelessWidget {
         : AppColors.secondary;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.only(bottom: compact ? 8 : 12),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -81,7 +83,8 @@ class ScheduleCard extends StatelessWidget {
                 children: [
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
+                    padding: EdgeInsets.fromLTRB(
+                        compact ? 10 : 14, compact ? 10 : 14, compact ? 6 : 8, compact ? 10 : 14),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -95,6 +98,7 @@ class ScheduleCard extends StatelessWidget {
                                     ? schedule.projeto
                                     : schedule.produtora,
                                 style: theme.textTheme.titleMedium?.copyWith(
+                                  fontSize: compact ? 13 : null,
                                   fontStyle: schedule.projeto.isEmpty
                                       ? FontStyle.italic
                                       : null,
@@ -140,8 +144,9 @@ class ScheduleCard extends StatelessWidget {
                           _InfoPendenteBadge(),
                         ],
 
-                        // Linha 3: contato (se preenchido)
-                        if (schedule.contatoNome != null &&
+                        // Linha 3: contato (se preenchido, oculto em modo compacto)
+                        if (!compact &&
+                            schedule.contatoNome != null &&
                             schedule.contatoNome!.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           _ContactRow(

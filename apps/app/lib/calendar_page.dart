@@ -89,6 +89,14 @@ class CalendarPageState extends State<CalendarPage> {
   }
 
   Future<void> _toggleRealizado(ScheduleModel s) async {
+    if (!s.realizado && DateTime.now().isBefore(s.data)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+          'A escala ainda não ocorreu. Só é possível marcar como realizada após o horário agendado.',
+        ),
+      ));
+      return;
+    }
     final result = await ApiService.put(
       '/schedules/${s.id}',
       {'realizado': !s.realizado},
@@ -246,6 +254,7 @@ class CalendarPageState extends State<CalendarPage> {
                       final s = selectedEvents[i];
                       return ScheduleCard(
                         schedule: s,
+                        compact: true,
                         onTap: () => _abrirEdicao(s),
                         onDelete: () => _deletar(s),
                         onToggleRealizado: () => _toggleRealizado(s),
@@ -267,7 +276,7 @@ class _DayMarker extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (status) {
       case _DayStatus.concluido:
-        return const Icon(Icons.check_circle, size: 10, color: AppColors.secondary);
+        return const Icon(Icons.check_circle, size: 14, color: AppColors.secondary);
       case _DayStatus.pendente:
         return _dot(Colors.amber);
       case _DayStatus.naoRealizado:
@@ -280,8 +289,8 @@ class _DayMarker extends StatelessWidget {
   }
 
   Widget _dot(Color color) => Container(
-        width: 7,
-        height: 7,
+        width: 10,
+        height: 10,
         decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       );
 }
