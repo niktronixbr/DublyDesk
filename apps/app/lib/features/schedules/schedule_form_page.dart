@@ -595,29 +595,33 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
                   children: [
                     _label('CÁLCULO', secondaryColor),
                     const SizedBox(height: 8),
-                    SegmentedButton<_CalculoModo>(
-                      segments: const [
-                        ButtonSegment(
-                          value: _CalculoModo.horaCheia,
-                          label: Text('Hora cheia'),
-                          icon: Icon(Icons.access_time, size: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: SegmentedButton<_CalculoModo>(
+                        segments: const [
+                          ButtonSegment(
+                            value: _CalculoModo.horaCheia,
+                            label: Text('Hora cheia'),
+                            icon: Icon(Icons.access_time, size: 16),
+                          ),
+                          ButtonSegment(
+                            value: _CalculoModo.proporcional,
+                            label: Text('Proporcional'),
+                            icon: Icon(Icons.timelapse, size: 16),
+                          ),
+                          ButtonSegment(
+                            value: _CalculoModo.manual,
+                            label: Text('Manual'),
+                            icon: Icon(Icons.edit, size: 16),
+                          ),
+                        ],
+                        selected: {_modoCalculo},
+                        onSelectionChanged: (s) =>
+                            setState(() => _modoCalculo = s.first),
+                        style: SegmentedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          textStyle: const TextStyle(fontSize: 12),
                         ),
-                        ButtonSegment(
-                          value: _CalculoModo.proporcional,
-                          label: Text('Proporcional'),
-                          icon: Icon(Icons.timelapse, size: 16),
-                        ),
-                        ButtonSegment(
-                          value: _CalculoModo.manual,
-                          label: Text('Manual'),
-                          icon: Icon(Icons.edit, size: 16),
-                        ),
-                      ],
-                      selected: {_modoCalculo},
-                      onSelectionChanged: (s) =>
-                          setState(() => _modoCalculo = s.first),
-                      style: const ButtonStyle(
-                        visualDensity: VisualDensity.compact,
                       ),
                     ),
                     const SizedBox(height: 12),

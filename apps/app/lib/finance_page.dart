@@ -335,31 +335,35 @@ class FinancePageState extends State<FinancePage> {
   Widget _buildPeriodoSelector(ThemeData theme, Color secondaryColor) {
     return Column(
       children: [
-        SegmentedButton<_PeriodoModo>(
-          style: SegmentedButton.styleFrom(
-            selectedBackgroundColor: AppColors.primary,
-            selectedForegroundColor: Colors.white,
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<_PeriodoModo>(
+            style: SegmentedButton.styleFrom(
+              selectedBackgroundColor: AppColors.primary,
+              selectedForegroundColor: Colors.white,
+              textStyle: const TextStyle(fontSize: 13),
+            ),
+            segments: const [
+              ButtonSegment(
+                value: _PeriodoModo.semana,
+                label: Text('Semana'),
+              ),
+              ButtonSegment(
+                value: _PeriodoModo.mes,
+                label: Text('Mês'),
+              ),
+              ButtonSegment(
+                value: _PeriodoModo.ano,
+                label: Text('Ano'),
+              ),
+            ],
+            selected: {_periodoModo},
+            onSelectionChanged: (s) {
+              if (s.isEmpty) return;
+              setState(() => _periodoModo = s.first);
+              _salvarPeriodo();
+            },
           ),
-          segments: const [
-            ButtonSegment(
-              value: _PeriodoModo.semana,
-              label: Text('Semana'),
-            ),
-            ButtonSegment(
-              value: _PeriodoModo.mes,
-              label: Text('Mês'),
-            ),
-            ButtonSegment(
-              value: _PeriodoModo.ano,
-              label: Text('Ano'),
-            ),
-          ],
-          selected: {_periodoModo},
-          onSelectionChanged: (s) {
-            if (s.isEmpty) return;
-            setState(() => _periodoModo = s.first);
-            _salvarPeriodo();
-          },
         ),
         const SizedBox(height: 8),
         Row(
@@ -473,10 +477,6 @@ class FinancePageState extends State<FinancePage> {
   }
 
   Widget _buildGraficoAno(ThemeData theme, Color secondaryColor) {
-    const labels = [
-      'JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN',
-      'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ',
-    ];
     final dados = _totaisPorMesDoAno();
     final maxVal = dados.values.isEmpty
         ? 0.0
@@ -493,7 +493,7 @@ class FinancePageState extends State<FinancePage> {
       maxY: maxY,
       count: 12,
       getValue: (i) => dados[i + 1] ?? 0,
-      getLabel: (i) => labels[i],
+      getLabel: (i) => '${i + 1}',
       highlightIndex: mesAtualIdx,
     );
   }
