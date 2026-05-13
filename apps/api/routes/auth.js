@@ -180,18 +180,24 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
       [userId, token, expiresAt]
     );
 
-    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    // Suporta tanto SMTP_* quanto EMAIL_* como nomes alternativos de variável
+    const smtpHost = process.env.SMTP_HOST ?? (process.env.EMAIL_USER ? 'smtp.gmail.com' : null);
+    const smtpUser = process.env.SMTP_USER ?? process.env.EMAIL_USER ?? null;
+    const smtpPass = process.env.SMTP_PASS ?? process.env.EMAIL_PASS ?? null;
+    const smtpPort = parseInt(process.env.SMTP_PORT ?? '587');
+
+    if (smtpHost && smtpUser && smtpPass) {
       const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT || '587'),
+        host: smtpHost,
+        port: smtpPort,
         secure: false,
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+        auth: { user: smtpUser, pass: smtpPass },
       });
 
       try {
-        console.log(`[SMTP] Enviando código para: ${email} | host: ${process.env.SMTP_HOST}:${process.env.SMTP_PORT || '587'}`);
+        console.log(`[SMTP] Enviando código para: ${email} | host: ${smtpHost}:${smtpPort}`);
         await transporter.sendMail({
-          from: `"DublyDesk" <${process.env.SMTP_USER}>`,
+          from: `"DublyDesk" <${smtpUser}>`,
           to: email,
           subject: 'Redefinição de senha — DublyDesk',
           text: `Seu código de redefinição de senha é: ${token}\n\nEsse código é válido por 1 hora.\nSe você não solicitou isso, ignore este email.`,
@@ -209,7 +215,7 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
         throw smtpErr;
       }
     } else {
-      console.warn('[SMTP] Variáveis SMTP_HOST/SMTP_USER/SMTP_PASS não configuradas — email não enviado.');
+      console.warn('[SMTP] Credenciais não configuradas — defina SMTP_HOST+SMTP_USER+SMTP_PASS ou EMAIL_USER+EMAIL_PASS no .env');
       console.log(`[DEV] Código de recuperação para ${email}: ${token}`);
     }
 
