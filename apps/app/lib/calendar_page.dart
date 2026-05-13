@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import 'auth_service.dart';
 import 'core/models/schedule_model.dart';
 import 'core/services/api_service.dart';
 import 'core/theme/app_colors.dart';
 import 'features/schedules/schedule_card.dart';
 import 'features/schedules/schedule_form_page.dart';
-import 'features/schedules/schedule_list_page.dart';
+import 'shared/widgets/user_avatar.dart';
 
 enum _DayStatus { vazio, futuro, pendente, naoRealizado, concluido }
 
 class CalendarPage extends StatefulWidget {
   final List<ScheduleModel>? escalas;
-  const CalendarPage({super.key, this.escalas});
+  final VoidCallback? onToggleView;
+  const CalendarPage({super.key, this.escalas, this.onToggleView});
 
   @override
   State<CalendarPage> createState() => CalendarPageState();
@@ -23,10 +25,13 @@ class CalendarPageState extends State<CalendarPage> {
   DateTime _selectedDay = DateTime.now();
   Map<DateTime, List<ScheduleModel>> _events = {};
   List<ScheduleModel> _allSchedules = [];
+  String _userName = '';
+  String? _avatarUrl;
 
   @override
   void initState() {
     super.initState();
+    _carregarUsuario();
     if (widget.escalas != null && widget.escalas!.isNotEmpty) {
       _allSchedules = widget.escalas!;
       _events = _agrupar(widget.escalas!);
@@ -36,6 +41,16 @@ class CalendarPageState extends State<CalendarPage> {
   }
 
   Future<void> refresh() => _fetch();
+
+  Future<void> _carregarUsuario() async {
+    final nome = await AuthService.getUserName();
+    final avatar = await AuthService.getAvatarUrl();
+    if (!mounted) return;
+    setState(() {
+      _userName = nome ?? '';
+      _avatarUrl = avatar;
+    });
+  }
 
   Map<DateTime, List<ScheduleModel>> _agrupar(List<ScheduleModel> lista) {
     final map = <DateTime, List<ScheduleModel>>{};
@@ -166,15 +181,26 @@ class CalendarPageState extends State<CalendarPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Escalas'),
+        titleSpacing: 16,
+        title: Row(
+          children: [
+            UserAvatar(
+              size: 40,
+              name: _userName,
+              avatarUrl: _avatarUrl,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'DublyDesk',
+              style: Theme.of(context).appBarTheme.titleTextStyle,
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             tooltip: 'Ver como lista',
             icon: const Icon(Icons.view_list_outlined),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ScheduleListPage()),
-            ).then((_) => _fetch()),
+            onPressed: widget.onToggleView,
           ),
           const SizedBox(width: 4),
         ],

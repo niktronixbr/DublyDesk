@@ -4,6 +4,7 @@ import 'calendar_page.dart';
 import 'core/services/theme_service.dart';
 import 'features/profile/profile_page.dart';
 import 'features/schedules/schedule_form_page.dart';
+import 'features/schedules/schedule_list_page.dart';
 import 'finance_page.dart';
 
 /// Shell de navegação pós-login.
@@ -19,16 +20,27 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _index = 0;
+  bool _showListMode = false;
 
   final _calendarKey = GlobalKey<CalendarPageState>();
   final _financeKey = GlobalKey<FinancePageState>();
+  final _listKey = GlobalKey<ScheduleListPageState>();
 
   late final List<Widget> _pages = [
-    CalendarPage(key: _calendarKey),
+    CalendarPage(
+      key: _calendarKey,
+      onToggleView: () => setState(() => _showListMode = true),
+    ),
     const SizedBox.shrink(), // placeholder para a aba "Novo"
     FinancePage(key: _financeKey),
     ProfilePage(themeService: widget.themeService),
+    ScheduleListPage(
+      key: _listKey,
+      onToggleView: () => setState(() => _showListMode = false),
+    ),
   ];
+
+  int get _effectiveIndex => _index == 0 && _showListMode ? 4 : _index;
 
   Future<void> _abrirNovo() async {
     await Navigator.push(
@@ -37,6 +49,7 @@ class _HomePageState extends State<HomePage> {
     );
     _calendarKey.currentState?.refresh();
     _financeKey.currentState?.refresh();
+    _listKey.currentState?.refresh();
   }
 
   void _onTabTapped(int i) {
@@ -47,13 +60,14 @@ class _HomePageState extends State<HomePage> {
     if (i == 2 && _index != 2) {
       _financeKey.currentState?.refresh();
     }
+    if (i != 0) setState(() => _showListMode = false);
     setState(() => _index = i);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _index, children: _pages),
+      body: IndexedStack(index: _effectiveIndex, children: _pages),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: _onTabTapped,

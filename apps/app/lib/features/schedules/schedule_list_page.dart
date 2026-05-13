@@ -16,7 +16,8 @@ import 'schedule_form_page.dart';
 
 class ScheduleListPage extends StatefulWidget {
   final ThemeService? themeService;
-  const ScheduleListPage({super.key, this.themeService});
+  final VoidCallback? onToggleView;
+  const ScheduleListPage({super.key, this.themeService, this.onToggleView});
 
   @override
   State<ScheduleListPage> createState() => ScheduleListPageState();
@@ -306,6 +307,12 @@ class ScheduleListPageState extends State<ScheduleListPage> {
         ],
       ),
       actions: [
+        if (widget.onToggleView != null)
+          IconButton(
+            tooltip: 'Ver como calendário',
+            icon: const Icon(Icons.calendar_month_outlined),
+            onPressed: widget.onToggleView,
+          ),
         IconButton(
           tooltip: 'Notificações',
           icon: const Icon(Icons.notifications_outlined),
