@@ -598,6 +598,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
                     SizedBox(
                       width: double.infinity,
                       child: SegmentedButton<_CalculoModo>(
+                        showSelectedIcon: false,
                         segments: const [
                           ButtonSegment(
                             value: _CalculoModo.horaCheia,
