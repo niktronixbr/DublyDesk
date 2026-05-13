@@ -602,17 +602,14 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
                           ButtonSegment(
                             value: _CalculoModo.horaCheia,
                             label: Text('Hora cheia'),
-                            icon: Icon(Icons.access_time, size: 16),
                           ),
                           ButtonSegment(
                             value: _CalculoModo.proporcional,
                             label: Text('Proporcional'),
-                            icon: Icon(Icons.timelapse, size: 16),
                           ),
                           ButtonSegment(
                             value: _CalculoModo.manual,
                             label: Text('Manual'),
-                            icon: Icon(Icons.edit, size: 16),
                           ),
                         ],
                         selected: {_modoCalculo},
@@ -620,7 +617,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
                             setState(() => _modoCalculo = s.first),
                         style: SegmentedButton.styleFrom(
                           visualDensity: VisualDensity.compact,
-                          textStyle: const TextStyle(fontSize: 12),
+                          textStyle: const TextStyle(fontSize: 13),
                         ),
                       ),
                     ),

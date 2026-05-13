@@ -161,19 +161,6 @@ class CalendarPageState extends State<CalendarPage> {
     _fetch();
   }
 
-  Future<void> _novaEscala() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ScheduleFormPage(
-          dataInicial: _selectedDay,
-          escalasExistentes: _allSchedules,
-        ),
-      ),
-    );
-    _fetch();
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -204,11 +191,6 @@ class CalendarPageState extends State<CalendarPage> {
           ),
           const SizedBox(width: 4),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _novaEscala,
-        tooltip: 'Nova escala',
-        child: const Icon(Icons.add),
       ),
       body: Column(
         children: [

@@ -338,6 +338,7 @@ class FinancePageState extends State<FinancePage> {
         SizedBox(
           width: double.infinity,
           child: SegmentedButton<_PeriodoModo>(
+            showSelectedIcon: false,
             style: SegmentedButton.styleFrom(
               selectedBackgroundColor: AppColors.primary,
               selectedForegroundColor: Colors.white,
