@@ -618,7 +618,11 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
                             setState(() => _modoCalculo = s.first),
                         style: SegmentedButton.styleFrom(
                           visualDensity: VisualDensity.compact,
-                          textStyle: const TextStyle(fontSize: 13),
+                          textStyle: const TextStyle(fontSize: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 8,
+                          ),
                         ),
                       ),
                     ),
