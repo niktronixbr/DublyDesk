@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
@@ -63,6 +65,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
   DateTime? _dataSelecionada;
   bool _salvando = false;
   bool _mostrarLembretes = false;
+  Timer? _contatoDebounce;
 
   List<Map<String, dynamic>> _produtorasFull = [];
   List<String> _produtorasNomes = [];
@@ -109,6 +112,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
 
   @override
   void dispose() {
+    _contatoDebounce?.cancel();
     _projeto.dispose();
     _produtora.dispose();
     _diretor.dispose();
@@ -157,28 +161,36 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
     });
   }
 
-  void _autoPreencherContato(String nomeProdutora) {
-    final p = _produtorasFull.firstWhere(
-      (e) => (e['nome']?.toString() ?? '') == nomeProdutora,
-      orElse: () => <String, dynamic>{},
-    );
-    final cn = p['contato_nome']?.toString();
-    final ct = p['contato_telefone']?.toString();
+  void _onContatoNomeChanged(String nome) {
+    _contatoDebounce?.cancel();
+    _contatoDebounce =
+        Timer(const Duration(milliseconds: 400), () => _buscarTelefonePorContato(nome));
+  }
 
-    // Só preenche se o usuário ainda não digitou nada manualmente.
+  void _buscarTelefonePorContato(String nome) {
+    if (!mounted) return;
+    final n = nome.trim().toLowerCase();
+    if (n.isEmpty) return;
+
+    Map<String, dynamic>? match;
+    for (final p in _produtorasFull) {
+      final cn = (p['contato_nome']?.toString() ?? '').trim().toLowerCase();
+      if (cn == n) {
+        match = p;
+        break;
+      }
+    }
+
+    final tel = match?['contato_telefone']?.toString();
+    if (tel == null || tel.isEmpty) return;
+    if (_contatoTelefone.text.trim().isNotEmpty) return;
+
     setState(() {
-      if (_contatoNome.text.trim().isEmpty && cn != null && cn.isNotEmpty) {
-        _contatoNome.text = cn;
-      }
-      if (_contatoTelefone.text.trim().isEmpty &&
-          ct != null &&
-          ct.isNotEmpty) {
-        _phoneMask.formatEditUpdate(
-          TextEditingValue.empty,
-          TextEditingValue(text: ct),
-        );
-        _contatoTelefone.text = _phoneMask.getMaskedText();
-      }
+      _phoneMask.formatEditUpdate(
+        TextEditingValue.empty,
+        TextEditingValue(text: tel),
+      );
+      _contatoTelefone.text = _phoneMask.getMaskedText();
     });
   }
 
@@ -428,7 +440,6 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
                 controller: _produtora,
                 sugestoes: _produtorasNomes,
                 hint: 'Ex.: Unidub',
-                onSelected: _autoPreencherContato,
               ),
 
               _label('DIRETOR', secondaryColor),
@@ -455,6 +466,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
                     _label('NOME', secondaryColor),
                     TextField(
                       controller: _contatoNome,
+                      onChanged: _onContatoNomeChanged,
                       decoration:
                           const InputDecoration(hintText: 'Ex.: Maria Silva'),
                     ),
