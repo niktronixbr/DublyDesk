@@ -36,6 +36,7 @@ class ScheduleListPageState extends State<ScheduleListPage> {
 
   bool _carregando = false;
   bool _isOffline = false;
+  bool _ordemCrescente = false;
   String _userName = '';
   String? _avatarUrl;
 
@@ -160,6 +161,10 @@ class ScheduleListPageState extends State<ScheduleListPage> {
           atendeDataInicio &&
           atendeDataFim;
     }).toList();
+
+    lista.sort((a, b) => _ordemCrescente
+        ? a.data.compareTo(b.data)
+        : b.data.compareTo(a.data));
 
     if (!mounted) return;
     setState(() => _filtered = lista);
@@ -426,6 +431,50 @@ class ScheduleListPageState extends State<ScheduleListPage> {
                 ),
               ),
             ),
+          GestureDetector(
+            onTap: () {
+              setState(() => _ordemCrescente = !_ordemCrescente);
+              _aplicarFiltros();
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: _ordemCrescente
+                    ? AppColors.primary.withValues(alpha: 0.15)
+                    : theme.colorScheme.surfaceContainer,
+                borderRadius: BorderRadius.circular(9999),
+                border: Border.all(
+                  color: _ordemCrescente
+                      ? AppColors.primaryFor(theme.brightness)
+                      : theme.colorScheme.outlineVariant,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _ordemCrescente
+                        ? Icons.arrow_upward
+                        : Icons.arrow_downward,
+                    size: 16,
+                    color: _ordemCrescente
+                        ? AppColors.primaryFor(theme.brightness)
+                        : theme.colorScheme.onSurface,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _ordemCrescente ? 'Mais antigas' : 'Mais recentes',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: _ordemCrescente
+                          ? AppColors.primaryFor(theme.brightness)
+                          : theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
           GestureDetector(
             onTap: () => _abrirFiltros(theme),
             child: Container(
@@ -772,13 +821,20 @@ class ScheduleListPageState extends State<ScheduleListPage> {
         futuras.add(s);
       }
     }
-    final secoes = <_Secao>[
-      if (deHoje.isNotEmpty) _Secao('HOJE', deHoje),
-      if (estaSemana.isNotEmpty) _Secao('ESTA SEMANA', estaSemana),
-      if (futuras.isNotEmpty) _Secao('FUTURAS', futuras),
-      if (anteriores.isNotEmpty)
-        _Secao('ANTERIORES', anteriores.reversed.toList()),
-    ];
+    final secoes = _ordemCrescente
+        ? <_Secao>[
+            if (anteriores.isNotEmpty) _Secao('ANTERIORES', anteriores),
+            if (deHoje.isNotEmpty) _Secao('HOJE', deHoje),
+            if (estaSemana.isNotEmpty) _Secao('ESTA SEMANA', estaSemana),
+            if (futuras.isNotEmpty) _Secao('FUTURAS', futuras),
+          ]
+        : <_Secao>[
+            if (deHoje.isNotEmpty) _Secao('HOJE', deHoje),
+            if (estaSemana.isNotEmpty) _Secao('ESTA SEMANA', estaSemana),
+            if (futuras.isNotEmpty) _Secao('FUTURAS', futuras),
+            if (anteriores.isNotEmpty)
+              _Secao('ANTERIORES', anteriores.reversed.toList()),
+          ];
 
     final items = <Object>[];
     for (final s in secoes) {

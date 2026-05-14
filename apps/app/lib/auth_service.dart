@@ -8,6 +8,7 @@ class AuthService {
   static const _userEmailKey = 'user_email';
   static const _rememberKey = 'auth_remember_me';
   static const _avatarUrlKey = 'user_avatar_url';
+  static const _savedPasswordKey = 'auth_saved_password';
 
   static Future<void> saveSession({
     required String token,
@@ -15,6 +16,7 @@ class AuthService {
     required String email,
     bool rememberMe = true,
     String? avatarUrl,
+    String? password,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
@@ -25,6 +27,11 @@ class AuthService {
       await prefs.remove(_avatarUrlKey);
     } else {
       await prefs.setString(_avatarUrlKey, avatarUrl);
+    }
+    if (rememberMe && password != null && password.isNotEmpty) {
+      await prefs.setString(_savedPasswordKey, password);
+    } else if (!rememberMe) {
+      await prefs.remove(_savedPasswordKey);
     }
   }
 
@@ -67,6 +74,16 @@ class AuthService {
     return prefs.getString(_userEmailKey);
   }
 
+  static Future<String?> getSavedPassword() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_savedPasswordKey);
+  }
+
+  static Future<void> clearSavedPassword() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_savedPasswordKey);
+  }
+
   static Future<Map<String, String>> authHeaders() async {
     final token = await getToken();
     return {
@@ -90,12 +107,13 @@ class AuthService {
     await prefs.remove(_avatarUrlKey);
     await prefs.remove('schedules_cache');
 
-    // Limpar email/remember somente se o usuário NÃO marcou "lembrar de mim"
+    // Limpar email/remember/senha somente se o usuário NÃO marcou "lembrar de mim"
     if (!remember) {
       await prefs.remove(_userEmailKey);
       await prefs.remove(_rememberKey);
+      await prefs.remove(_savedPasswordKey);
     }
-    // else: deixar user_email e auth_remember_me intactos
+    // else: deixar user_email, auth_remember_me e auth_saved_password intactos
   }
 
   static String? parseErrorBody(String body) {

@@ -22,6 +22,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _loading = false;
   bool _obscurePassword = true;
   bool _rememberMe = true;
+  bool _autoLoginando = true;
 
   @override
   void initState() {
@@ -31,13 +32,26 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _carregarDadosLembrados() async {
     final remember = await AuthService.getRememberMe();
-    if (!remember) return;
+    if (!remember) {
+      if (mounted) setState(() => _autoLoginando = false);
+      return;
+    }
+
     final email = await AuthService.getUserEmail();
-    if (email != null && email.isNotEmpty && mounted) {
-      setState(() {
-        _email.text = email;
-        _rememberMe = true;
-      });
+    final senha = await AuthService.getSavedPassword();
+
+    if (!mounted) return;
+
+    if (email != null && email.isNotEmpty) {
+      _email.text = email;
+      _rememberMe = true;
+    }
+
+    if (senha != null && senha.isNotEmpty && email != null && email.isNotEmpty) {
+      _password.text = senha;
+      await _login(autoLogin: true);
+    } else {
+      setState(() => _autoLoginando = false);
     }
   }
 
@@ -48,25 +62,25 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  Future<void> _login() async {
+  Future<void> _login({bool autoLogin = false}) async {
     if (_email.text.trim().isEmpty || _password.text.trim().isEmpty) {
       _snack('Preencha email e senha.');
       return;
     }
 
-    setState(() => _loading = true);
+    if (!autoLogin) setState(() => _loading = true);
 
+    final senha = _password.text.trim();
     final result = await ApiService.post(
       '/auth/login',
       {
         'email': _email.text.trim(),
-        'password': _password.text.trim(),
+        'password': senha,
       },
       requiresAuth: false,
     );
 
     if (!mounted) return;
-    setState(() => _loading = false);
 
     if (result['success'] == true) {
       final data = result['data'] as Map<String, dynamic>;
@@ -76,6 +90,7 @@ class _LoginPageState extends State<LoginPage> {
         email: data['user']['email'],
         rememberMe: _rememberMe,
         avatarUrl: data['user']['avatarUrl'] as String?,
+        password: _rememberMe ? senha : null,
       );
 
       if (!mounted) return;
@@ -86,7 +101,18 @@ class _LoginPageState extends State<LoginPage> {
         ),
       );
     } else {
-      _snack(result['error'] ?? 'Erro no login');
+      if (autoLogin) {
+        // Credencial inválida (ex: senha mudou) — limpar senha salva e mostrar formulário
+        await AuthService.clearSavedPassword();
+        _password.clear();
+        if (mounted) {
+          setState(() => _autoLoginando = false);
+          _snack('Sessão expirada. Digite sua senha para continuar.');
+        }
+      } else {
+        setState(() => _loading = false);
+        _snack(result['error'] ?? 'Erro no login');
+      }
     }
   }
 
@@ -96,6 +122,12 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_autoLoginando) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final theme = Theme.of(context);
     final secondaryColor = theme.brightness == Brightness.dark
         ? AppColors.darkTextSecondary

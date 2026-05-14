@@ -51,8 +51,8 @@ const scheduleUpdateValidation = [
     .withMessage('Hora fim inválida (formato HH:mm)'),
   body('valor_hora')
     .optional()
-    .isFloat({ min: 0.01 })
-    .withMessage('Valor/hora deve ser maior que zero'),
+    .isFloat({ min: 0 })
+    .withMessage('Valor/hora inválido'),
 ];
 
 function validateRequest(req, res, next) {
