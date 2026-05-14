@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:local_auth/local_auth.dart';
 
 import '../../auth_service.dart';
 import '../../core/services/api_service.dart';
@@ -23,19 +22,11 @@ class _LoginPageState extends State<LoginPage> {
   bool _loading = false;
   bool _obscurePassword = true;
   bool _rememberMe = true;
-  bool _podeBiometria = false;
-
-  final _localAuth = LocalAuthentication();
 
   @override
   void initState() {
     super.initState();
-    _init();
-  }
-
-  Future<void> _init() async {
-    await _carregarDadosLembrados();
-    await _verificarBiometria();
+    _carregarDadosLembrados();
   }
 
   Future<void> _carregarDadosLembrados() async {
@@ -47,41 +38,6 @@ class _LoginPageState extends State<LoginPage> {
         _email.text = email;
         _rememberMe = true;
       });
-    }
-  }
-
-  Future<void> _verificarBiometria() async {
-    final temToken = await AuthService.hasSavedToken();
-    if (!temToken) return;
-    final disponivel = await _localAuth.canCheckBiometrics;
-    final suportado = await _localAuth.isDeviceSupported();
-    if (!mounted) return;
-    setState(() => _podeBiometria = disponivel && suportado);
-  }
-
-  Future<void> _loginBiometrico() async {
-    try {
-      final ok = await _localAuth.authenticate(
-        localizedReason: 'Use sua impressão digital para entrar no DublyDesk',
-        options: const AuthenticationOptions(
-          stickyAuth: true,
-          biometricOnly: false,
-        ),
-      );
-      if (ok) {
-        await AuthService.setRememberMe(true);
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => HomePage(themeService: ThemeService.instance),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint('Biometria erro: $e');
-      _snack('Biometria: $e');
     }
   }
 
@@ -293,24 +249,6 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                       ),
-
-                      // Biometria
-                      if (_podeBiometria) ...[
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: _loginBiometrico,
-                            icon: const Icon(Icons.fingerprint),
-                            label: const Text('Entrar com impressão digital'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.primaryLight,
-                              side: const BorderSide(
-                                  color: AppColors.primaryLight),
-                            ),
-                          ),
-                        ),
-                      ],
 
                       const SizedBox(height: 12),
 
