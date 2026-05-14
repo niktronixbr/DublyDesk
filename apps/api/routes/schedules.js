@@ -5,6 +5,20 @@ const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
+async function verificarConflito(userId, dateStr, horaInicio, horaFim, excludeId = null) {
+  const result = await pool.query(
+    `SELECT id FROM schedules
+     WHERE user_id = $1
+       AND data::date = $2::date
+       AND ($3::int IS NULL OR id != $3::int)
+       AND hora_inicio < $4
+       AND hora_fim   > $5
+     LIMIT 1`,
+    [userId, dateStr, excludeId, horaFim, horaInicio]
+  );
+  return result.rowCount > 0;
+}
+
 router.use(authMiddleware);
 
 // --- Validação ---
@@ -172,6 +186,18 @@ router.post('/', scheduleValidation, validateRequest, async (req, res) => {
   const produtoraFinal = tipoFinal === 'compromisso' ? '' : produtora;
 
   try {
+    const conflito = await verificarConflito(
+      req.user.id,
+      data.substring(0, 10),
+      hora_inicio,
+      hora_fim
+    );
+    if (conflito) {
+      return res.status(409).json({
+        error: 'Horário indisponível — já existe um agendamento nesse período.',
+      });
+    }
+
     const result = await pool.query(
       `INSERT INTO schedules
        (user_id, projeto, produtora, diretor, data, hora_inicio, hora_fim,
