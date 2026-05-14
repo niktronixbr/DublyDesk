@@ -236,6 +236,11 @@ router.put('/:id', scheduleUpdateValidation, validateRequest, async (req, res) =
   const { id } = req.params;
 
   try {
+    const numId = parseInt(id, 10);
+    if (isNaN(numId)) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
+
     const temCampoTemporal = ['data', 'hora_inicio', 'hora_fim']
       .some((k) => req.body[k] !== undefined);
 
@@ -244,7 +249,7 @@ router.put('/:id', scheduleUpdateValidation, validateRequest, async (req, res) =
       let hi = req.body.hora_inicio;
       let hf = req.body.hora_fim;
 
-      if (!d || !hi || !hf) {
+      if (d === undefined || hi === undefined || hf === undefined) {
         const cur = await pool.query(
           'SELECT data, hora_inicio, hora_fim FROM schedules WHERE id = $1 AND user_id = $2',
           [id, req.user.id]
@@ -263,7 +268,7 @@ router.put('/:id', scheduleUpdateValidation, validateRequest, async (req, res) =
         d.substring(0, 10),
         hi,
         hf,
-        parseInt(id)
+        numId
       );
       if (conflito) {
         return res.status(409).json({
