@@ -46,6 +46,7 @@ class FinancePageState extends State<FinancePage> {
               : responseData as List;
       final parsed = rawList
           .map((e) => ScheduleModel.fromJson(e as Map<String, dynamic>))
+          .where((s) => !s.isCompromisso && s.remunerado)
           .toList();
       setState(() => _schedules = parsed);
     }
