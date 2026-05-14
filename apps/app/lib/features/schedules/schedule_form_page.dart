@@ -27,8 +27,6 @@ const _labelLembretes = {
   'exato': 'No horário exato',
 };
 
-enum _CalculoModo { horaCheia, proporcional, manual }
-
 class ScheduleFormPage extends StatefulWidget {
   final ScheduleModel? item;
   final List<ScheduleModel> escalasExistentes;
@@ -57,13 +55,11 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
     filter: {'#': RegExp(r'\d')},
     type: MaskAutoCompletionType.lazy,
   );
-  final _valorHora = TextEditingController();
-  final _valorTotalManual = TextEditingController();
+  final _valorTotal = TextEditingController();
   final _horaInicio = TextEditingController();
   final _horaFim = TextEditingController();
   final _observacao = TextEditingController();
 
-  _CalculoModo _modoCalculo = _CalculoModo.horaCheia;
   DateTime? _dataSelecionada;
   bool _salvando = false;
   bool _mostrarLembretes = false;
@@ -98,8 +94,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
         TextEditingValue(text: rawPhone),
       );
       _contatoTelefone.text = _phoneMask.getMaskedText();
-      _valorHora.text = item.valorHora.toString().replaceAll('.', ',');
-      _valorTotalManual.text = item.valorTotal.toString().replaceAll('.', ',');
+      _valorTotal.text = item.valorTotal.toString().replaceAll('.', ',');
       _horaInicio.text = item.horaInicio;
       _horaFim.text = item.horaFim;
       _observacao.text = item.observacao ?? '';
@@ -107,8 +102,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
       _lembretes = Map<String, bool>.from(item.lembretes);
     }
 
-    _valorHora.addListener(() => setState(() {}));
-    _valorTotalManual.addListener(() => setState(() {}));
+    _valorTotal.addListener(() => setState(() {}));
     _horaInicio.addListener(() => setState(() {}));
     _horaFim.addListener(() => setState(() {}));
   }
@@ -121,8 +115,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
     _tipoTrabalho.dispose();
     _contatoNome.dispose();
     _contatoTelefone.dispose();
-    _valorHora.dispose();
-    _valorTotalManual.dispose();
+    _valorTotal.dispose();
     _horaInicio.dispose();
     _horaFim.dispose();
     _observacao.dispose();
@@ -196,27 +189,6 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
         0;
   }
 
-  double get _valorTotalPreview {
-    if (_modoCalculo == _CalculoModo.manual) {
-      return _parseValor(_valorTotalManual.text);
-    }
-    final inicio = _horaInicio.text.split(':');
-    final fim = _horaFim.text.split(':');
-    if (inicio.length != 2 || fim.length != 2) return 0;
-    final hI = int.tryParse(inicio[0]);
-    final mI = int.tryParse(inicio[1]);
-    final hF = int.tryParse(fim[0]);
-    final mF = int.tryParse(fim[1]);
-    if (hI == null || mI == null || hF == null || mF == null) return 0;
-    final minutos = (hF * 60 + mF) - (hI * 60 + mI);
-    if (minutos <= 0) return 0;
-    final valorHora = _parseValor(_valorHora.text);
-    if (_modoCalculo == _CalculoModo.horaCheia) {
-      return (minutos / 60.0).ceil() * valorHora;
-    }
-    return (minutos / 60.0) * valorHora;
-  }
-
   Future<void> _selecionarHora(TextEditingController controller) async {
     TimeOfDay initialTime = TimeOfDay.now();
     if (controller.text.contains(':')) {
@@ -249,14 +221,10 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
   }
 
   bool _validarCampos() {
-    final valorPreenchido = _modoCalculo == _CalculoModo.manual
-        ? _valorTotalManual.text.trim().isNotEmpty
-        : _valorHora.text.trim().isNotEmpty;
-
     if (_produtora.text.trim().isEmpty ||
         _horaInicio.text.trim().isEmpty ||
         _horaFim.text.trim().isEmpty ||
-        !valorPreenchido ||
+        _valorTotal.text.trim().isEmpty ||
         _dataSelecionada == null) {
       _snack('Preencha todos os campos obrigatórios.');
       return false;
@@ -330,19 +298,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
         return;
       }
 
-      final double valorHoraDouble;
-      final double valorTotal;
-      if (_modoCalculo == _CalculoModo.manual) {
-        valorTotal = _parseValor(_valorTotalManual.text);
-        valorHoraDouble = 0;
-      } else {
-        valorHoraDouble = _parseValor(_valorHora.text);
-        if (_modoCalculo == _CalculoModo.horaCheia) {
-          valorTotal = (diferencaMinutos / 60.0).ceil() * valorHoraDouble;
-        } else {
-          valorTotal = (diferencaMinutos / 60.0) * valorHoraDouble;
-        }
-      }
+      final valorTotal = _parseValor(_valorTotal.text);
 
       if (_temConflito(inicioDate, fimDate)) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -374,14 +330,14 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
           _garantirFavorito('/diretores', _diretoresSugeridos, _diretor.text),
       ]);
 
-      final body = {
+      final body = <String, dynamic>{
         'projeto': _projeto.text.trim(),
         'produtora': _produtora.text.trim(),
         'diretor': _diretor.text.trim(),
         'data': inicioDate.toIso8601String(),
         'hora_inicio': _horaInicio.text.trim(),
         'hora_fim': _horaFim.text.trim(),
-        'valor_hora': valorHoraDouble,
+        'valor_hora': 0,
         'valor_total': valorTotal,
         'realizado': widget.item?.realizado ?? false,
         if (_observacao.text.trim().isNotEmpty)
@@ -593,91 +549,15 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _label('CÁLCULO', secondaryColor),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: SegmentedButton<_CalculoModo>(
-                        showSelectedIcon: false,
-                        segments: const [
-                          ButtonSegment(
-                            value: _CalculoModo.horaCheia,
-                            label: Text('Hora cheia'),
-                          ),
-                          ButtonSegment(
-                            value: _CalculoModo.proporcional,
-                            label: Text('Proporcional'),
-                          ),
-                          ButtonSegment(
-                            value: _CalculoModo.manual,
-                            label: Text('Manual'),
-                          ),
-                        ],
-                        selected: {_modoCalculo},
-                        onSelectionChanged: (s) =>
-                            setState(() => _modoCalculo = s.first),
-                        style: SegmentedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          textStyle: const TextStyle(fontSize: 12),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 8,
-                          ),
-                        ),
+                    _label('VALOR TOTAL (R\$) *', secondaryColor),
+                    TextField(
+                      controller: _valorTotal,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (_modoCalculo == _CalculoModo.manual) ...[
-                      _label('VALOR TOTAL (R\$) *', secondaryColor),
-                      TextField(
-                        controller: _valorTotalManual,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        decoration: const InputDecoration(
-                          hintText: 'Ex.: 150,00',
-                          prefixText: 'R\$  ',
-                        ),
-                      ),
-                    ] else ...[
-                      _label('VALOR / HORA (R\$) *', secondaryColor),
-                      TextField(
-                        controller: _valorHora,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        decoration: const InputDecoration(
-                          hintText: 'Ex.: 100,50',
-                          prefixText: 'R\$  ',
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          Text(
-                            'TOTAL PREVISTO',
-                            style: AppTheme.labelCaps(
-                              color: AppColors.secondary,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            NumberFormat.currency(
-                              locale: 'pt_BR',
-                              symbol: 'R\$',
-                            ).format(_valorTotalPreview),
-                            style: AppTheme.financialDisplay(
-                                    color: AppColors.secondary)
-                                .copyWith(fontSize: 24),
-                          ),
-                        ],
+                      decoration: const InputDecoration(
+                        hintText: 'Ex.: 150,00',
+                        prefixText: 'R\$  ',
                       ),
                     ),
                   ],
