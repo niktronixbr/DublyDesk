@@ -6,17 +6,22 @@ const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 
 async function verificarConflito(userId, dateStr, horaInicio, horaFim, excludeId = null) {
-  const result = await pool.query(
-    `SELECT id FROM schedules
-     WHERE user_id = $1
-       AND data::date = $2::date
-       AND ($3::int IS NULL OR id != $3::int)
-       AND hora_inicio < $4
-       AND hora_fim   > $5
-     LIMIT 1`,
-    [userId, dateStr, excludeId, horaFim, horaInicio]
-  );
-  return result.rowCount > 0;
+  try {
+    const result = await pool.query(
+      `SELECT id FROM schedules
+       WHERE user_id = $1
+         AND data::date = $2::date
+         AND ($3::int IS NULL OR id != $3::int)
+         AND hora_inicio::time < $4::time
+         AND hora_fim::time   > $5::time
+       LIMIT 1`,
+      [userId, dateStr, excludeId, horaFim, horaInicio]
+    );
+    return result.rowCount > 0;
+  } catch (err) {
+    console.error('verificarConflito error:', err);
+    throw err;
+  }
 }
 
 router.use(authMiddleware);
