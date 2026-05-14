@@ -10,8 +10,11 @@ router.use(authMiddleware);
 // --- Validação ---
 
 const scheduleValidation = [
+  body('tipo').optional().isIn(['trabalho', 'compromisso']).withMessage('Tipo inválido'),
   body('projeto').optional().trim(),
-  body('produtora').trim().notEmpty().withMessage('Produtora é obrigatória'),
+  body('produtora')
+    .if((value, { req }) => (req.body.tipo ?? 'trabalho') === 'trabalho')
+    .trim().notEmpty().withMessage('Produtora é obrigatória'),
   body('data').isISO8601().withMessage('Data inválida'),
   body('hora_inicio')
     .matches(/^\d{2}:\d{2}$/)
@@ -19,10 +22,14 @@ const scheduleValidation = [
   body('hora_fim')
     .matches(/^\d{2}:\d{2}$/)
     .withMessage('Hora fim inválida (formato HH:mm)'),
-  body('valor_hora')
-    .isFloat({ min: 0 })
-    .withMessage('Valor/hora inválido'),
+  body('remunerado').optional().isBoolean(),
+  body('valor_hora').optional().isFloat({ min: 0 }).withMessage('Valor/hora inválido'),
   body('valor_total')
+    .if((value, { req }) => {
+      const tipo = req.body.tipo ?? 'trabalho';
+      const remunerado = req.body.remunerado !== false;
+      return tipo === 'trabalho' && remunerado;
+    })
     .isFloat({ min: 0.01 })
     .withMessage('Valor total deve ser maior que zero'),
   body('hora_fim').custom((horaFim, { req }) => {
@@ -53,6 +60,8 @@ const scheduleUpdateValidation = [
     .optional()
     .isFloat({ min: 0 })
     .withMessage('Valor/hora inválido'),
+  body('tipo').optional().isIn(['trabalho', 'compromisso']).withMessage('Tipo inválido'),
+  body('remunerado').optional().isBoolean(),
 ];
 
 function validateRequest(req, res, next) {
@@ -153,25 +162,34 @@ router.post('/', scheduleValidation, validateRequest, async (req, res) => {
     data, hora_inicio, hora_fim,
     valor_hora, valor_total, realizado, observacao, lembretes,
     tipo_trabalho, contato_nome, contato_telefone,
+    tipo, remunerado,
   } = req.body;
+
+  const tipoFinal = tipo === 'compromisso' ? 'compromisso' : 'trabalho';
+  const remuneradoFinal = tipoFinal === 'compromisso' ? false : (remunerado !== false);
+  const valorHoraFinal = remuneradoFinal ? (parseFloat(valor_hora) || 0) : 0;
+  const valorTotalFinal = remuneradoFinal ? (parseFloat(valor_total) || 0) : 0;
+  const produtoraFinal = tipoFinal === 'compromisso' ? (produtora ?? '') : produtora;
 
   try {
     const result = await pool.query(
       `INSERT INTO schedules
        (user_id, projeto, produtora, diretor, data, hora_inicio, hora_fim,
         valor_hora, valor_total, realizado, observacao, lembretes,
-        tipo_trabalho, contato_nome, contato_telefone)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+        tipo_trabalho, contato_nome, contato_telefone, tipo, remunerado)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
        RETURNING *`,
       [
-        req.user.id, projeto, produtora, diretor,
+        req.user.id, projeto ?? '', produtoraFinal, diretor ?? null,
         data, hora_inicio, hora_fim,
-        valor_hora, valor_total, realizado ?? false,
+        valorHoraFinal, valorTotalFinal, realizado ?? false,
         observacao ?? null,
         lembretes ?? { '60min': false, '30min': true, '5min': true, exato: true },
         tipo_trabalho ?? null,
         contato_nome ?? null,
         contato_telefone ?? null,
+        tipoFinal,
+        remuneradoFinal,
       ]
     );
 
@@ -192,6 +210,7 @@ router.put('/:id', scheduleUpdateValidation, validateRequest, async (req, res) =
       'hora_inicio', 'hora_fim', 'valor_hora', 'valor_total',
       'realizado', 'observacao', 'lembretes',
       'tipo_trabalho', 'contato_nome', 'contato_telefone',
+      'tipo', 'remunerado',
     ];
 
     const entradas = Object.entries(req.body).filter(([chave]) =>
@@ -200,6 +219,22 @@ router.put('/:id', scheduleUpdateValidation, validateRequest, async (req, res) =
 
     if (entradas.length === 0) {
       return res.status(400).json({ error: 'Nenhum campo válido para atualizar' });
+    }
+
+    // Coerce: force zero values when not remunerated or for compromisso
+    const tipoEntry = entradas.find(([k]) => k === 'tipo');
+    const remuneradoEntry = entradas.find(([k]) => k === 'remunerado');
+    const tipoVal = tipoEntry ? tipoEntry[1] : null;
+    const remuneradoVal = remuneradoEntry ? remuneradoEntry[1] : null;
+    if (tipoVal === 'compromisso' || remuneradoVal === false) {
+      const override = (k, v) => {
+        const idx = entradas.findIndex(([key]) => key === k);
+        if (idx >= 0) entradas[idx] = [k, v];
+        else entradas.push([k, v]);
+      };
+      override('valor_hora', 0);
+      override('valor_total', 0);
+      if (tipoVal === 'compromisso') override('remunerado', false);
     }
 
     const sets = entradas.map(([chave], i) => `${chave} = $${i + 1}`);

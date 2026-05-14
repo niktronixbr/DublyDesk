@@ -159,6 +159,20 @@ async function createTables() {
   } catch (err) {
     console.error('❌ Erro na migration users.avatar_url:', err);
   }
+
+  try {
+    await pool.query(`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS remunerado BOOLEAN NOT NULL DEFAULT true`);
+  } catch (err) {
+    console.error('❌ Erro na migration schedules.remunerado:', err);
+  }
+
+  try {
+    await pool.query(`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS tipo TEXT NOT NULL DEFAULT 'trabalho'`);
+    await pool.query(`UPDATE schedules SET tipo = 'trabalho' WHERE tipo NOT IN ('trabalho','compromisso')`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_schedules_user_tipo ON schedules(user_id, tipo)`);
+  } catch (err) {
+    console.error('❌ Erro na migration schedules.tipo:', err);
+  }
 }
 
 app.get('/health', (req, res) => {
