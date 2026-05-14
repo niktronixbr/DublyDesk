@@ -4,6 +4,9 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'core/models/schedule_model.dart';
+import 'core/services/api_service.dart';
+
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
@@ -222,6 +225,55 @@ class NotificationService {
         dataHora: dataHora,
       );
     }
+  }
+
+  /// Cancela todas as notificações pendentes e reagenda apenas as escalas
+  /// com data futura encontradas na API. Idempotente — pode ser chamada
+  /// no startup do app para evitar disparos de escalas já passadas.
+  static Future<void> resyncFromApi() async {
+    await init();
+    try {
+      final result = await ApiService.get('/schedules?limit=1000');
+      if (result['success'] != true) {
+        debugPrint('Resync de notificações: GET /schedules falhou.');
+        return;
+      }
+
+      final responseData = result['data'];
+      final List rawList =
+          (responseData is Map && responseData.containsKey('data'))
+              ? responseData['data'] as List
+              : responseData as List;
+      final schedules = rawList
+          .map((e) => ScheduleModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      await _notifications.cancelAll();
+
+      final now = DateTime.now();
+      for (final s in schedules) {
+        final dataHora = _combinarDataHora(s.data, s.horaInicio);
+        if (dataHora == null || !dataHora.isAfter(now)) continue;
+        await scheduleDefaultAgendaNotifications(
+          baseId: s.id,
+          corpo:
+              '${s.produtora}${s.projeto.isNotEmpty ? ' • ${s.projeto}' : ''} às ${s.horaInicio}',
+          dataHora: dataHora,
+          lembretes: s.lembretes,
+        );
+      }
+    } catch (e) {
+      debugPrint('Erro no resync de notificações: $e');
+    }
+  }
+
+  static DateTime? _combinarDataHora(DateTime data, String horaInicio) {
+    final partes = horaInicio.split(':');
+    if (partes.length != 2) return null;
+    final h = int.tryParse(partes[0]);
+    final m = int.tryParse(partes[1]);
+    if (h == null || m == null) return null;
+    return DateTime(data.year, data.month, data.day, h, m);
   }
 
   static Future<void> cancelAgendaNotifications(int baseId) async {

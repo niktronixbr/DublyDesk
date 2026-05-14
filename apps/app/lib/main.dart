@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:local_auth/local_auth.dart';
@@ -75,6 +77,7 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> {
   bool _loading = true;
   bool _logged = false;
+  static bool _notificationsResynced = false;
 
   @override
   void initState() {
@@ -97,6 +100,11 @@ class _AuthGateState extends State<AuthGate> {
       if (!mounted) return;
       setState(() { _logged = false; _loading = false; });
       return;
+    }
+
+    if (!_notificationsResynced) {
+      _notificationsResynced = true;
+      unawaited(NotificationService.resyncFromApi());
     }
 
     // rememberMe=true: auto-login apenas se o dispositivo não suporta biometria.
