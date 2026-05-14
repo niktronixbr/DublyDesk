@@ -22,7 +22,7 @@ class CalendarPage extends StatefulWidget {
 
 class CalendarPageState extends State<CalendarPage> {
   DateTime _focusedDay = DateTime.now();
-  DateTime _selectedDay = DateTime.now();
+  DateTime? _selectedDay = DateTime.now();
   Map<DateTime, List<ScheduleModel>> _events = {};
   List<ScheduleModel> _allSchedules = [];
   String _userName = '';
@@ -164,7 +164,9 @@ class CalendarPageState extends State<CalendarPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final selectedEvents = _eventsForDay(_selectedDay);
+    final selectedEvents = _selectedDay == null
+        ? const <ScheduleModel>[]
+        : _eventsForDay(_selectedDay!);
 
     return Scaffold(
       appBar: AppBar(
@@ -206,11 +208,18 @@ class CalendarPageState extends State<CalendarPage> {
               firstDay: DateTime(2020),
               lastDay: DateTime(2030),
               locale: 'pt_BR',
-              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+              selectedDayPredicate: (day) =>
+                  _selectedDay != null && isSameDay(_selectedDay, day),
               onDaySelected: (selected, focused) {
                 setState(() {
                   _selectedDay = selected;
                   _focusedDay = focused;
+                });
+              },
+              onPageChanged: (focused) {
+                setState(() {
+                  _focusedDay = focused;
+                  _selectedDay = null;
                 });
               },
               eventLoader: _eventsForDay,
@@ -253,7 +262,9 @@ class CalendarPageState extends State<CalendarPage> {
             ),
           ),
           Expanded(
-            child: selectedEvents.isEmpty
+            child: _selectedDay == null
+                ? const Center(child: Text('Selecione uma data no calendário.'))
+                : selectedEvents.isEmpty
                 ? const Center(child: Text('Nenhuma escala neste dia.'))
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
