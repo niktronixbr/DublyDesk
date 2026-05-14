@@ -9,12 +9,16 @@ class ScheduleModel {
   final double valorHora;
   final double valorTotal;
   final bool realizado;
+  final bool remunerado;
+  final String tipo;
   final String? observacao;
   final String? tipoTrabalho;
   final String? contatoNome;
   final String? contatoTelefone;
   final Map<String, bool> lembretes;
   final DateTime createdAt;
+
+  bool get isCompromisso => tipo == 'compromisso';
 
   static const defaultLembretes = {
     '60min': false,
@@ -34,6 +38,8 @@ class ScheduleModel {
     required this.valorHora,
     required this.valorTotal,
     required this.realizado,
+    this.remunerado = true,
+    this.tipo = 'trabalho',
     this.observacao,
     this.tipoTrabalho,
     this.contatoNome,
@@ -75,6 +81,8 @@ class ScheduleModel {
       valorHora: double.tryParse(json['valor_hora'].toString()) ?? 0,
       valorTotal: double.tryParse(json['valor_total'].toString()) ?? 0,
       realizado: json['realizado'] == true,
+      remunerado: json['remunerado'] != false,
+      tipo: json['tipo']?.toString() ?? 'trabalho',
       observacao: json['observacao']?.toString(),
       tipoTrabalho: json['tipo_trabalho']?.toString(),
       contatoNome: json['contato_nome']?.toString(),
@@ -96,6 +104,8 @@ class ScheduleModel {
         'valor_hora': valorHora,
         'valor_total': valorTotal,
         'realizado': realizado,
+        'remunerado': remunerado,
+        'tipo': tipo,
         'observacao': observacao,
         'tipo_trabalho': tipoTrabalho,
         'contato_nome': contatoNome,
@@ -103,7 +113,7 @@ class ScheduleModel {
         'lembretes': lembretes,
       };
 
-  ScheduleModel copyWith({bool? realizado}) => ScheduleModel(
+  ScheduleModel copyWith({bool? realizado, bool? remunerado, String? tipo}) => ScheduleModel(
         id: id,
         projeto: projeto,
         produtora: produtora,
@@ -114,6 +124,8 @@ class ScheduleModel {
         valorHora: valorHora,
         valorTotal: valorTotal,
         realizado: realizado ?? this.realizado,
+        remunerado: remunerado ?? this.remunerado,
+        tipo: tipo ?? this.tipo,
         observacao: observacao,
         tipoTrabalho: tipoTrabalho,
         contatoNome: contatoNome,
