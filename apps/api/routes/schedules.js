@@ -236,6 +236,42 @@ router.put('/:id', scheduleUpdateValidation, validateRequest, async (req, res) =
   const { id } = req.params;
 
   try {
+    const temCampoTemporal = ['data', 'hora_inicio', 'hora_fim']
+      .some((k) => req.body[k] !== undefined);
+
+    if (temCampoTemporal) {
+      let d  = req.body.data;
+      let hi = req.body.hora_inicio;
+      let hf = req.body.hora_fim;
+
+      if (!d || !hi || !hf) {
+        const cur = await pool.query(
+          'SELECT data, hora_inicio, hora_fim FROM schedules WHERE id = $1 AND user_id = $2',
+          [id, req.user.id]
+        );
+        if (cur.rowCount === 0) {
+          return res.status(404).json({ error: 'Escala não encontrada' });
+        }
+        const row = cur.rows[0];
+        d  = d  ?? row.data.toISOString().substring(0, 10);
+        hi = hi ?? row.hora_inicio;
+        hf = hf ?? row.hora_fim;
+      }
+
+      const conflito = await verificarConflito(
+        req.user.id,
+        d.substring(0, 10),
+        hi,
+        hf,
+        parseInt(id)
+      );
+      if (conflito) {
+        return res.status(409).json({
+          error: 'Horário indisponível — já existe um agendamento nesse período.',
+        });
+      }
+    }
+
     const camposPermitidos = [
       'projeto', 'produtora', 'diretor', 'data',
       'hora_inicio', 'hora_fim', 'valor_hora', 'valor_total',
