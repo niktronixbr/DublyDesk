@@ -225,7 +225,8 @@ router.put('/:id', scheduleUpdateValidation, validateRequest, async (req, res) =
     const tipoEntry = entradas.find(([k]) => k === 'tipo');
     const remuneradoEntry = entradas.find(([k]) => k === 'remunerado');
     const tipoVal = tipoEntry ? tipoEntry[1] : null;
-    const remuneradoVal = remuneradoEntry ? remuneradoEntry[1] : null;
+    const remuneradoRaw = remuneradoEntry ? remuneradoEntry[1] : null;
+    const remuneradoVal = remuneradoRaw === false || remuneradoRaw === 'false' ? false : remuneradoRaw;
     if (tipoVal === 'compromisso' || remuneradoVal === false) {
       const override = (k, v) => {
         const idx = entradas.findIndex(([key]) => key === k);
