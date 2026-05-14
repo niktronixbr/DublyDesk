@@ -65,6 +65,8 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
   DateTime? _dataSelecionada;
   bool _salvando = false;
   bool _mostrarLembretes = false;
+  String _tipo = 'trabalho';
+  bool _remunerado = true;
   Timer? _contatoDebounce;
 
   List<Map<String, dynamic>> _produtorasFull = [];
@@ -103,6 +105,11 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
       _observacao.text = item.observacao ?? '';
       _dataSelecionada = item.data;
       _lembretes = Map<String, bool>.from(item.lembretes);
+      _tipo = item.tipo;
+      _remunerado = item.remunerado;
+      if (_tipo == 'compromisso') {
+        _valorTotal.text = '';
+      }
     }
 
     _valorTotal.addListener(() => setState(() {}));
@@ -233,13 +240,27 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
   }
 
   bool _validarCampos() {
-    if (_produtora.text.trim().isEmpty ||
+    if (_dataSelecionada == null ||
         _horaInicio.text.trim().isEmpty ||
-        _horaFim.text.trim().isEmpty ||
-        _valorTotal.text.trim().isEmpty ||
-        _dataSelecionada == null) {
-      _snack('Preencha todos os campos obrigatórios.');
+        _horaFim.text.trim().isEmpty) {
+      _snack('Preencha data e horários obrigatórios.');
       return false;
+    }
+
+    if (_tipo == 'compromisso') {
+      if (_projeto.text.trim().isEmpty) {
+        _snack('Informe o título do compromisso.');
+        return false;
+      }
+    } else {
+      if (_produtora.text.trim().isEmpty) {
+        _snack('Produtora é obrigatória.');
+        return false;
+      }
+      if (_remunerado && _valorTotal.text.trim().isEmpty) {
+        _snack('Informe o valor total ou desative a remuneração.');
+        return false;
+      }
     }
     return true;
   }
@@ -310,7 +331,8 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
         return;
       }
 
-      final valorTotal = _parseValor(_valorTotal.text);
+      final isCompromisso = _tipo == 'compromisso';
+      final valorTotal = (!isCompromisso && _remunerado) ? _parseValor(_valorTotal.text) : 0.0;
 
       if (_temConflito(inicioDate, fimDate)) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -323,42 +345,45 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
         return;
       }
 
-      final contatoExtra = <String, dynamic>{
-        if (_contatoNome.text.trim().isNotEmpty)
-          'contato_nome': _contatoNome.text.trim(),
-        if (_contatoTelefone.text.trim().isNotEmpty)
-          'contato_telefone': _contatoTelefone.text.trim(),
-      };
-
-      await Future.wait([
-        _garantirFavorito(
-          '/produtoras',
-          _produtorasNomes,
-          _produtora.text,
-          extra: contatoExtra.isEmpty ? null : contatoExtra,
-        ),
-        _garantirFavorito('/projetos', _projetosSugeridos, _projeto.text),
-        if (_diretor.text.trim().isNotEmpty)
-          _garantirFavorito('/diretores', _diretoresSugeridos, _diretor.text),
-      ]);
+      if (!isCompromisso) {
+        final contatoExtra = <String, dynamic>{
+          if (_contatoNome.text.trim().isNotEmpty)
+            'contato_nome': _contatoNome.text.trim(),
+          if (_contatoTelefone.text.trim().isNotEmpty)
+            'contato_telefone': _contatoTelefone.text.trim(),
+        };
+        await Future.wait([
+          _garantirFavorito(
+            '/produtoras',
+            _produtorasNomes,
+            _produtora.text,
+            extra: contatoExtra.isEmpty ? null : contatoExtra,
+          ),
+          _garantirFavorito('/projetos', _projetosSugeridos, _projeto.text),
+          if (_diretor.text.trim().isNotEmpty)
+            _garantirFavorito('/diretores', _diretoresSugeridos, _diretor.text),
+        ]);
+      }
 
       final body = <String, dynamic>{
+        'tipo': _tipo,
         'projeto': _projeto.text.trim(),
-        'produtora': _produtora.text.trim(),
-        'diretor': _diretor.text.trim(),
+        'produtora': isCompromisso ? '' : _produtora.text.trim(),
+        if (!isCompromisso) 'diretor': _diretor.text.trim(),
         'data': inicioDate.toIso8601String(),
         'hora_inicio': _horaInicio.text.trim(),
         'hora_fim': _horaFim.text.trim(),
         'valor_hora': 0,
         'valor_total': valorTotal,
+        'remunerado': isCompromisso ? false : _remunerado,
         'realizado': widget.item?.realizado ?? false,
         if (_observacao.text.trim().isNotEmpty)
           'observacao': _observacao.text.trim(),
-        if (_tipoTrabalho.text.trim().isNotEmpty)
+        if (!isCompromisso && _tipoTrabalho.text.trim().isNotEmpty)
           'tipo_trabalho': _tipoTrabalho.text.trim(),
-        if (_contatoNome.text.trim().isNotEmpty)
+        if (!isCompromisso && _contatoNome.text.trim().isNotEmpty)
           'contato_nome': _contatoNome.text.trim(),
-        if (_contatoTelefone.text.trim().isNotEmpty)
+        if (!isCompromisso && _contatoTelefone.text.trim().isNotEmpty)
           'contato_telefone': _contatoTelefone.text.trim(),
         'lembretes': _lembretes,
       };
@@ -383,8 +408,9 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
         if (id != 0) {
           await NotificationService.scheduleDefaultAgendaNotifications(
             baseId: id,
-            corpo:
-                '${_produtora.text.trim()} • ${_projeto.text.trim()} às ${_horaInicio.text.trim()}',
+            corpo: isCompromisso
+                ? '${_projeto.text.trim()} às ${_horaInicio.text.trim()}'
+                : '${_produtora.text.trim()} • ${_projeto.text.trim()} às ${_horaInicio.text.trim()}',
             dataHora: inicioDate,
             lembretes: _lembretes,
           );
@@ -413,7 +439,10 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final titulo = widget.item == null ? 'Nova Escala' : 'Editar Escala';
+    final isCompromisso = _tipo == 'compromisso';
+    final titulo = widget.item == null
+        ? (isCompromisso ? 'Novo Compromisso' : 'Nova Escala')
+        : (isCompromisso ? 'Editar Compromisso' : 'Editar Escala');
     final secondaryColor = theme.brightness == Brightness.dark
         ? AppColors.darkTextSecondary
         : AppColors.lightTextSecondary;
@@ -427,62 +456,94 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
             children: [
               const SizedBox(height: 8),
 
+              // Tipo selector
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: SegmentedButton<String>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(value: 'trabalho', label: Text('Trabalho')),
+                    ButtonSegment(value: 'compromisso', label: Text('Compromisso')),
+                  ],
+                  selected: {_tipo},
+                  onSelectionChanged: (s) {
+                    if (s.isEmpty) return;
+                    setState(() {
+                      _tipo = s.first;
+                      if (_tipo == 'compromisso') {
+                        _remunerado = false;
+                        _valorTotal.text = '';
+                        _diretor.clear();
+                        _tipoTrabalho.clear();
+                        _contatoNome.clear();
+                        _contatoTelefone.clear();
+                        _produtora.clear();
+                      } else {
+                        _remunerado = true;
+                      }
+                    });
+                  },
+                ),
+              ),
+
               // ----- Bloco: dados do trabalho -----
-              _label('NOME DO PROJETO', secondaryColor),
+              _label(isCompromisso ? 'TÍTULO *' : 'NOME DO PROJETO', secondaryColor),
               _autocomplete(
                 controller: _projeto,
                 sugestoes: _projetosSugeridos,
-                hint: 'Ex.: Cyberpunk: Edgerunners',
+                hint: isCompromisso ? 'Ex.: Reunião escola' : 'Ex.: Cyberpunk: Edgerunners',
               ),
 
-              _label('PRODUTORA *', secondaryColor),
-              _autocomplete(
-                controller: _produtora,
-                sugestoes: _produtorasNomes,
-                hint: 'Ex.: Unidub',
-              ),
-
-              _label('DIRETOR', secondaryColor),
-              _autocomplete(
-                controller: _diretor,
-                sugestoes: _diretoresSugeridos,
-                hint: 'Ex.: Wellington Lima',
-              ),
-
-              _label('TIPO DE TRABALHO', secondaryColor),
-              _autocomplete(
-                controller: _tipoTrabalho,
-                sugestoes: _tiposTrabalhoSugeridos,
-                hint: 'Loops, Voz Adicional, etc.',
-              ),
-
-              const SizedBox(height: 8),
-              _sectionCard(
-                theme,
-                title: 'CONTATO',
-                titleColor: secondaryColor,
-                child: Column(
-                  children: [
-                    _label('NOME', secondaryColor),
-                    TextField(
-                      controller: _contatoNome,
-                      onChanged: _onContatoNomeChanged,
-                      decoration:
-                          const InputDecoration(hintText: 'Ex.: Maria Silva'),
-                    ),
-                    const SizedBox(height: 12),
-                    _label('TELEFONE', secondaryColor),
-                    TextField(
-                      controller: _contatoTelefone,
-                      keyboardType: TextInputType.phone,
-                      inputFormatters: [_phoneMask],
-                      decoration: const InputDecoration(
-                        hintText: '(11) 99999-9999',
-                      ),
-                    ),
-                  ],
+              if (!isCompromisso) ...[
+                _label('PRODUTORA *', secondaryColor),
+                _autocomplete(
+                  controller: _produtora,
+                  sugestoes: _produtorasNomes,
+                  hint: 'Ex.: Unidub',
                 ),
-              ),
+
+                _label('DIRETOR', secondaryColor),
+                _autocomplete(
+                  controller: _diretor,
+                  sugestoes: _diretoresSugeridos,
+                  hint: 'Ex.: Wellington Lima',
+                ),
+
+                _label('TIPO DE TRABALHO', secondaryColor),
+                _autocomplete(
+                  controller: _tipoTrabalho,
+                  sugestoes: _tiposTrabalhoSugeridos,
+                  hint: 'Loops, Voz Adicional, etc.',
+                ),
+
+                const SizedBox(height: 8),
+                _sectionCard(
+                  theme,
+                  title: 'CONTATO',
+                  titleColor: secondaryColor,
+                  child: Column(
+                    children: [
+                      _label('NOME', secondaryColor),
+                      TextField(
+                        controller: _contatoNome,
+                        onChanged: _onContatoNomeChanged,
+                        decoration:
+                            const InputDecoration(hintText: 'Ex.: Maria Silva'),
+                      ),
+                      const SizedBox(height: 12),
+                      _label('TELEFONE', secondaryColor),
+                      TextField(
+                        controller: _contatoTelefone,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [_phoneMask],
+                        decoration: const InputDecoration(
+                          hintText: '(11) 99999-9999',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
 
               const SizedBox(height: 16),
               _sectionCard(
@@ -553,28 +614,69 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
                 ),
               ),
 
-              const SizedBox(height: 16),
-              _sectionCard(
-                theme,
-                title: 'VALOR',
-                titleColor: secondaryColor,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _label('VALOR TOTAL (R\$) *', secondaryColor),
-                    TextField(
-                      controller: _valorTotal,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
+              if (!isCompromisso) ...[
+                const SizedBox(height: 16),
+                _sectionCard(
+                  theme,
+                  title: 'VALOR',
+                  titleColor: secondaryColor,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Remuneração',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          ),
+                          Switch(
+                            value: _remunerado,
+                            onChanged: (v) => setState(() {
+                              _remunerado = v;
+                              if (!v) _valorTotal.text = '';
+                            }),
+                          ),
+                        ],
                       ),
-                      decoration: const InputDecoration(
-                        hintText: 'Ex.: 150,00',
-                        prefixText: 'R\$  ',
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        child: _remunerado
+                            ? Column(
+                                key: const ValueKey('valor-on'),
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _label('VALOR TOTAL (R\$) *', secondaryColor),
+                                  TextField(
+                                    controller: _valorTotal,
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                    decoration: const InputDecoration(
+                                      hintText: 'Ex.: 150,00',
+                                      prefixText: 'R\$  ',
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Padding(
+                                key: const ValueKey('valor-off'),
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  'Sem remuneração (teste, retake, etc.)',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: secondaryColor,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
 
               const SizedBox(height: 16),
               _sectionCard(
@@ -662,7 +764,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _salvando ? null : _salvar,
-                  child: Text(_salvando ? 'Salvando...' : 'Salvar Escala'),
+                  child: Text(_salvando ? 'Salvando...' : (isCompromisso ? 'Salvar Compromisso' : 'Salvar Escala')),
                 ),
               ),
               const SizedBox(height: 8),
