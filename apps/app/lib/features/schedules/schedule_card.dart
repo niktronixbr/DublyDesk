@@ -8,10 +8,12 @@ import '../../core/theme/app_theme.dart';
 
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
-bool _temInfoPendente(ScheduleModel s) =>
-    s.projeto.isEmpty ||
-    (s.diretor == null || s.diretor!.isEmpty) ||
-    (s.tipoTrabalho == null || s.tipoTrabalho!.isEmpty);
+bool _temInfoPendente(ScheduleModel s) {
+  if (s.isCompromisso) return false;
+  return s.projeto.isEmpty ||
+      (s.diretor == null || s.diretor!.isEmpty) ||
+      (s.tipoTrabalho == null || s.tipoTrabalho!.isEmpty);
+}
 
 class ScheduleCard extends StatelessWidget {
   final ScheduleModel schedule;
@@ -37,13 +39,15 @@ class ScheduleCard extends StatelessWidget {
         : AppColors.lightTextSecondary;
 
     final realizado = schedule.realizado;
+    final isCompromisso = schedule.isCompromisso;
 
-    // Cor verde para textos quando o card é realizado (escurece no light, clareia no dark)
-    final accentGreen = realizado
-        ? (theme.brightness == Brightness.dark
-            ? AppColors.secondaryLight       // verde claro vivo no dark
-            : AppColors.secondaryDark)       // 0xFF00A572 — verde escuro no light
-        : AppColors.secondary;
+    final accentGreen = isCompromisso
+        ? AppColors.primaryLight
+        : (realizado
+            ? (theme.brightness == Brightness.dark
+                ? AppColors.secondaryLight
+                : AppColors.secondaryDark)
+            : AppColors.secondary);
 
     return Padding(
       padding: EdgeInsets.only(bottom: compact ? 8 : 12),
@@ -54,11 +58,14 @@ class ScheduleCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Container(
             decoration: BoxDecoration(
-              color: realizado
-                  ? (theme.brightness == Brightness.dark
-                      ? AppColors.secondary.withValues(alpha: 0.22)
-                      : AppColors.secondary.withValues(alpha: 0.14))
-                  : theme.colorScheme.surfaceContainer,
+              color: isCompromisso
+                  ? AppColors.primaryLight.withValues(
+                      alpha: theme.brightness == Brightness.dark ? 0.18 : 0.10)
+                  : (realizado
+                      ? (theme.brightness == Brightness.dark
+                          ? AppColors.secondary.withValues(alpha: 0.22)
+                          : AppColors.secondary.withValues(alpha: 0.14))
+                      : theme.colorScheme.surfaceContainer),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: theme.brightness == Brightness.dark
@@ -108,10 +115,12 @@ class ScheduleCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            _StatusBadge(
-                              realizado: realizado,
-                              onTap: onToggleRealizado,
-                            ),
+                            isCompromisso
+                                ? _TipoBadge(label: 'COMPROMISSO', color: AppColors.primaryLight)
+                                : _StatusBadge(
+                                    realizado: realizado,
+                                    onTap: onToggleRealizado,
+                                  ),
                             const SizedBox(width: 4),
                             InkWell(
                               onTap: onDelete,
@@ -128,14 +137,20 @@ class ScheduleCard extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 4),
-                        // Linha 2: produtora • diretor
+                        // Linha 2: produtora • diretor ou descrição do compromisso
                         Text(
-                          schedule.diretor != null &&
-                                  schedule.diretor!.isNotEmpty
-                              ? '${schedule.produtora} · Dir. ${schedule.diretor}'
-                              : schedule.produtora,
+                          isCompromisso
+                              ? (schedule.observacao?.isNotEmpty == true
+                                  ? schedule.observacao!
+                                  : 'Compromisso')
+                              : (schedule.diretor != null &&
+                                      schedule.diretor!.isNotEmpty
+                                  ? '${schedule.produtora} · Dir. ${schedule.diretor}'
+                                  : schedule.produtora),
                           style: theme.textTheme.bodySmall
                               ?.copyWith(color: secondaryColor),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
 
                         // Badge "Info pendente" quando campos opcionais estão vazios
@@ -144,8 +159,9 @@ class ScheduleCard extends StatelessWidget {
                           _InfoPendenteBadge(),
                         ],
 
-                        // Linha 3: contato (se preenchido, oculto em modo compacto)
-                        if (!compact &&
+                        // Linha 3: contato (se preenchido, oculto em modo compacto ou para compromisso)
+                        if (!isCompromisso &&
+                            !compact &&
                             schedule.contatoNome != null &&
                             schedule.contatoNome!.isNotEmpty) ...[
                           const SizedBox(height: 8),
@@ -183,14 +199,29 @@ class ScheduleCard extends StatelessWidget {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                Text(
-                                  _moeda.format(schedule.valorTotal),
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    color: accentGreen,
-                                    fontWeight: FontWeight.w700,
+                                if (isCompromisso)
+                                  Text(
+                                    'COMPROMISSO',
+                                    style: AppTheme.labelCaps(color: accentGreen),
+                                  )
+                                else if (!schedule.remunerado)
+                                  Text(
+                                    'Não remunerado',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: secondaryColor,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  )
+                                else
+                                  Text(
+                                    _moeda.format(schedule.valorTotal),
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      color: accentGreen,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
-                                ),
-                                if (schedule.tipoTrabalho != null &&
+                                if (!isCompromisso &&
+                                    schedule.tipoTrabalho != null &&
                                     schedule.tipoTrabalho!.isNotEmpty)
                                   Text(
                                     schedule.tipoTrabalho!,
@@ -250,6 +281,28 @@ class _StatusBadge extends StatelessWidget {
           label,
           style: AppTheme.labelCaps(color: textColor),
         ),
+      ),
+    );
+  }
+}
+
+class _TipoBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _TipoBadge({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(9999),
+        border: Border.all(color: color.withValues(alpha: 0.6)),
+      ),
+      child: Text(
+        label,
+        style: AppTheme.labelCaps(color: color),
       ),
     );
   }
