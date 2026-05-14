@@ -9,7 +9,7 @@ import 'features/schedules/schedule_card.dart';
 import 'features/schedules/schedule_form_page.dart';
 import 'shared/widgets/user_avatar.dart';
 
-enum _DayStatus { vazio, futuro, pendente, naoRealizado, concluido }
+enum _DayStatus { vazio, futuro, pendente, naoRealizado, concluido, somenteCompromisso, mistoComCompromisso }
 
 class CalendarPage extends StatefulWidget {
   final List<ScheduleModel>? escalas;
@@ -91,19 +91,38 @@ class CalendarPageState extends State<CalendarPage> {
   _DayStatus _statusForDay(DateTime day) {
     final events = _eventsForDay(day);
     if (events.isEmpty) return _DayStatus.vazio;
+
+    final trabalhos = events.where((s) => !s.isCompromisso).toList();
+    final compromissos = events.where((s) => s.isCompromisso).toList();
+
+    if (trabalhos.isEmpty && compromissos.isNotEmpty) {
+      return _DayStatus.somenteCompromisso;
+    }
+
     final today = DateTime.now();
     final dayOnly = DateTime(day.year, day.month, day.day);
     final todayOnly = DateTime(today.year, today.month, today.day);
     final isPastOrToday = !dayOnly.isAfter(todayOnly);
-    final allDone = events.every((s) => s.realizado);
-    final anyDone = events.any((s) => s.realizado);
-    if (allDone) return _DayStatus.concluido;
-    if (isPastOrToday && !anyDone) return _DayStatus.naoRealizado;
-    if (isPastOrToday) return _DayStatus.pendente;
-    return _DayStatus.futuro;
+    final allDone = trabalhos.every((s) => s.realizado);
+    final anyDone = trabalhos.any((s) => s.realizado);
+
+    _DayStatus base;
+    if (allDone) {
+      base = _DayStatus.concluido;
+    } else if (isPastOrToday && !anyDone) {
+      base = _DayStatus.naoRealizado;
+    } else if (isPastOrToday) {
+      base = _DayStatus.pendente;
+    } else {
+      base = _DayStatus.futuro;
+    }
+
+    if (compromissos.isEmpty) return base;
+    return _DayStatus.mistoComCompromisso;
   }
 
   Future<void> _toggleRealizado(ScheduleModel s) async {
+    if (s.isCompromisso) return;
     if (!s.realizado && DateTime.now().isBefore(s.data)) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text(
@@ -123,7 +142,7 @@ class CalendarPageState extends State<CalendarPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Remover escala?'),
+        title: const Text('Remover item?'),
         content: Text(
           'Deseja remover "${s.projeto.isNotEmpty ? s.projeto : s.produtora}"?',
         ),
@@ -265,7 +284,7 @@ class CalendarPageState extends State<CalendarPage> {
             child: _selectedDay == null
                 ? const Center(child: Text('Selecione uma data no calendário.'))
                 : selectedEvents.isEmpty
-                ? const Center(child: Text('Nenhuma escala neste dia.'))
+                ? const Center(child: Text('Nenhum evento neste dia.'))
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
                     itemCount: selectedEvents.length,
@@ -302,6 +321,17 @@ class _DayMarker extends StatelessWidget {
         return _dot(Colors.red);
       case _DayStatus.futuro:
         return _dot(AppColors.secondary);
+      case _DayStatus.somenteCompromisso:
+        return _square(AppColors.primaryLight);
+      case _DayStatus.mistoComCompromisso:
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _dot(AppColors.secondary),
+            const SizedBox(width: 2),
+            _square(AppColors.primaryLight),
+          ],
+        );
       case _DayStatus.vazio:
         return const SizedBox.shrink();
     }
@@ -311,5 +341,14 @@ class _DayMarker extends StatelessWidget {
         width: 10,
         height: 10,
         decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      );
+
+  Widget _square(Color color) => Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(2),
+        ),
       );
 }
