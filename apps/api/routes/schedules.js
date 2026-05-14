@@ -27,7 +27,7 @@ const scheduleValidation = [
   body('valor_total')
     .if((value, { req }) => {
       const tipo = req.body.tipo ?? 'trabalho';
-      const remunerado = req.body.remunerado !== false;
+      const remunerado = req.body.remunerado !== false && req.body.remunerado !== 'false';
       return tipo === 'trabalho' && remunerado;
     })
     .isFloat({ min: 0.01 })
@@ -169,7 +169,7 @@ router.post('/', scheduleValidation, validateRequest, async (req, res) => {
   const remuneradoFinal = tipoFinal === 'compromisso' ? false : (remunerado !== false);
   const valorHoraFinal = remuneradoFinal ? (parseFloat(valor_hora) || 0) : 0;
   const valorTotalFinal = remuneradoFinal ? (parseFloat(valor_total) || 0) : 0;
-  const produtoraFinal = tipoFinal === 'compromisso' ? (produtora ?? '') : produtora;
+  const produtoraFinal = tipoFinal === 'compromisso' ? '' : produtora;
 
   try {
     const result = await pool.query(
