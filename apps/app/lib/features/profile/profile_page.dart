@@ -171,7 +171,9 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Sair da conta'),
-        content: const Text('Tem certeza que deseja sair?'),
+        content: const Text(
+          'Ao sair, você precisará informar seu e-mail e senha novamente para entrar.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),

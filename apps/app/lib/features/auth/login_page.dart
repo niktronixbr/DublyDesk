@@ -10,7 +10,8 @@ import 'forgot_password_page.dart';
 import 'register_page.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  final bool forceManual;
+  const LoginPage({super.key, this.forceManual = false});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -21,7 +22,6 @@ class _LoginPageState extends State<LoginPage> {
   final _password = TextEditingController();
   bool _loading = false;
   bool _obscurePassword = true;
-  bool _rememberMe = true;
   bool _autoLoginando = true;
 
   @override
@@ -31,6 +31,11 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _carregarDadosLembrados() async {
+    if (widget.forceManual) {
+      if (mounted) setState(() => _autoLoginando = false);
+      return;
+    }
+
     final remember = await AuthService.getRememberMe();
     if (!remember) {
       if (mounted) setState(() => _autoLoginando = false);
@@ -44,7 +49,6 @@ class _LoginPageState extends State<LoginPage> {
 
     if (email != null && email.isNotEmpty) {
       _email.text = email;
-      _rememberMe = true;
     }
 
     if (senha != null && senha.isNotEmpty && email != null && email.isNotEmpty) {
@@ -88,9 +92,9 @@ class _LoginPageState extends State<LoginPage> {
         token: data['token'],
         name: data['user']['name'],
         email: data['user']['email'],
-        rememberMe: _rememberMe,
+        rememberMe: true,
         avatarUrl: data['user']['avatarUrl'] as String?,
-        password: _rememberMe ? senha : null,
+        password: senha,
       );
 
       if (!mounted) return;
@@ -235,35 +239,6 @@ class _LoginPageState extends State<LoginPage> {
                             onPressed: () => setState(
                               () => _obscurePassword = !_obscurePassword,
                             ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Lembrar de mim
-                      InkWell(
-                        onTap: () => setState(() => _rememberMe = !_rememberMe),
-                        borderRadius: BorderRadius.circular(8),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: Checkbox(
-                                  value: _rememberMe,
-                                  onChanged: (v) =>
-                                      setState(() => _rememberMe = v ?? false),
-                                  activeColor: AppColors.primary,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Lembrar de mim',
-                                style: theme.textTheme.bodyMedium,
-                              ),
-                            ],
                           ),
                         ),
                       ),

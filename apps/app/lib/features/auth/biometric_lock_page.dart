@@ -48,7 +48,7 @@ class _BiometricLockPageState extends State<BiometricLockPage> {
         localizedReason: 'Desbloquear DublyDesk',
         options: const AuthenticationOptions(
           stickyAuth: true,
-          biometricOnly: true,
+          biometricOnly: false,
         ),
       );
     } catch (e) {
@@ -72,7 +72,7 @@ class _BiometricLockPageState extends State<BiometricLockPage> {
   void _entrarComSenha() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const LoginPage()),
+      MaterialPageRoute(builder: (_) => const LoginPage(forceManual: true)),
     );
   }
 

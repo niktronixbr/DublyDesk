@@ -99,21 +99,13 @@ class AuthService {
 
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-    final remember = await getRememberMe();
-
-    // Limpar sessão (sempre)
     await prefs.remove(_tokenKey);
     await prefs.remove(_userNameKey);
     await prefs.remove(_avatarUrlKey);
     await prefs.remove('schedules_cache');
-
-    // Limpar email/remember/senha somente se o usuário NÃO marcou "lembrar de mim"
-    if (!remember) {
-      await prefs.remove(_userEmailKey);
-      await prefs.remove(_rememberKey);
-      await prefs.remove(_savedPasswordKey);
-    }
-    // else: deixar user_email, auth_remember_me e auth_saved_password intactos
+    await prefs.remove(_savedPasswordKey);
+    await prefs.remove(_rememberKey);
+    // _userEmailKey mantido para preencher o campo no relogin manual
   }
 
   static String? parseErrorBody(String body) {

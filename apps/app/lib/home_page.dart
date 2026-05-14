@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'calendar_page.dart';
 import 'core/services/theme_service.dart';
+import 'features/auth/biometric_lock_page.dart';
 import 'features/profile/profile_page.dart';
 import 'features/schedules/schedule_form_page.dart';
 import 'features/schedules/schedule_list_page.dart';
@@ -18,13 +19,46 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
+  static const _lockTimeout = Duration(minutes: 5);
+  DateTime? _pausedAt;
+
   int _index = 0;
   bool _showListMode = false;
 
   final _calendarKey = GlobalKey<CalendarPageState>();
   final _financeKey = GlobalKey<FinancePageState>();
   final _listKey = GlobalKey<ScheduleListPageState>();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _pausedAt = DateTime.now();
+    } else if (state == AppLifecycleState.resumed && _pausedAt != null) {
+      final elapsed = DateTime.now().difference(_pausedAt!);
+      _pausedAt = null;
+      if (elapsed >= _lockTimeout) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BiometricLockPage(themeService: widget.themeService),
+          ),
+        );
+      }
+    }
+  }
 
   late final List<Widget> _pages = [
     CalendarPage(

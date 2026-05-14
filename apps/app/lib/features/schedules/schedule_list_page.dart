@@ -312,6 +312,14 @@ class ScheduleListPageState extends State<ScheduleListPage> {
         ],
       ),
       actions: [
+        IconButton(
+          tooltip: _ordemCrescente ? 'Mais antigas primeiro' : 'Mais recentes primeiro',
+          icon: Icon(_ordemCrescente ? Icons.arrow_upward : Icons.arrow_downward),
+          onPressed: () {
+            setState(() => _ordemCrescente = !_ordemCrescente);
+            _aplicarFiltros();
+          },
+        ),
         if (widget.onToggleView != null)
           IconButton(
             tooltip: 'Ver como calendário',
@@ -821,20 +829,12 @@ class ScheduleListPageState extends State<ScheduleListPage> {
         futuras.add(s);
       }
     }
-    final secoes = _ordemCrescente
-        ? <_Secao>[
-            if (anteriores.isNotEmpty) _Secao('ANTERIORES', anteriores),
-            if (deHoje.isNotEmpty) _Secao('HOJE', deHoje),
-            if (estaSemana.isNotEmpty) _Secao('ESTA SEMANA', estaSemana),
-            if (futuras.isNotEmpty) _Secao('FUTURAS', futuras),
-          ]
-        : <_Secao>[
-            if (deHoje.isNotEmpty) _Secao('HOJE', deHoje),
-            if (estaSemana.isNotEmpty) _Secao('ESTA SEMANA', estaSemana),
-            if (futuras.isNotEmpty) _Secao('FUTURAS', futuras),
-            if (anteriores.isNotEmpty)
-              _Secao('ANTERIORES', anteriores.reversed.toList()),
-          ];
+    final secoes = <_Secao>[
+      if (deHoje.isNotEmpty) _Secao('HOJE', deHoje),
+      if (estaSemana.isNotEmpty) _Secao('ESTA SEMANA', estaSemana),
+      if (futuras.isNotEmpty) _Secao('FUTURAS', futuras),
+      if (anteriores.isNotEmpty) _Secao('ANTERIORES', anteriores),
+    ];
 
     final items = <Object>[];
     for (final s in secoes) {
