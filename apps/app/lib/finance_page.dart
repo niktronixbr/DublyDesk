@@ -732,6 +732,12 @@ class _RealizadaTile extends StatelessWidget {
                 Text(titulo, style: theme.textTheme.titleMedium),
                 const SizedBox(height: 2),
                 Text(
+                  DateFormat('dd/MM/yyyy').format(schedule.data),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: secondaryColor),
+                ),
+                const SizedBox(height: 2),
+                Text(
                   schedule.diretor != null && schedule.diretor!.isNotEmpty
                       ? '${schedule.produtora} · Dir. ${schedule.diretor}'
                       : schedule.produtora,
