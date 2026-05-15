@@ -116,7 +116,7 @@ class ScheduleCard extends StatelessWidget {
                             ),
                             const SizedBox(width: 8),
                             isCompromisso
-                                ? _TipoBadge(label: 'COMPROMISSO', color: AppColors.primaryLight)
+                                ? _TipoBadge(label: 'COMPROMISSO')
                                 : _StatusBadge(
                                     realizado: realizado,
                                     onTap: onToggleRealizado,
@@ -283,21 +283,29 @@ class _StatusBadge extends StatelessWidget {
 
 class _TipoBadge extends StatelessWidget {
   final String label;
-  final Color color;
-  const _TipoBadge({required this.label, required this.color});
+  const _TipoBadge({required this.label});
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fillColor = isDark
+        ? AppColors.primaryLight.withValues(alpha: 0.15)
+        : AppColors.primary;
+    final borderColor = isDark
+        ? AppColors.primaryLight.withValues(alpha: 0.6)
+        : AppColors.primary;
+    final textColor = isDark ? AppColors.primaryLight : Colors.white;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
+        color: fillColor,
         borderRadius: BorderRadius.circular(9999),
-        border: Border.all(color: color.withValues(alpha: 0.6)),
+        border: Border.all(color: borderColor),
       ),
       child: Text(
         label,
-        style: AppTheme.labelCaps(color: color),
+        style: AppTheme.labelCaps(color: textColor),
       ),
     );
   }
