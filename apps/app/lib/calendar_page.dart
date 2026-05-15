@@ -7,9 +7,8 @@ import 'core/services/api_service.dart';
 import 'core/theme/app_colors.dart';
 import 'features/schedules/schedule_card.dart';
 import 'features/schedules/schedule_form_page.dart';
+import 'shared/widgets/calendar_day_marker.dart';
 import 'shared/widgets/user_avatar.dart';
-
-enum _DayStatus { vazio, futuro, pendente, naoRealizado, concluido, somenteCompromisso, mistoComCompromisso }
 
 class CalendarPage extends StatefulWidget {
   final List<ScheduleModel>? escalas;
@@ -25,6 +24,7 @@ class CalendarPageState extends State<CalendarPage> {
   DateTime? _selectedDay = DateTime.now();
   Map<DateTime, List<ScheduleModel>> _events = {};
   List<ScheduleModel> _allSchedules = [];
+
   String _userName = '';
   String? _avatarUrl;
 
@@ -52,14 +52,8 @@ class CalendarPageState extends State<CalendarPage> {
     });
   }
 
-  Map<DateTime, List<ScheduleModel>> _agrupar(List<ScheduleModel> lista) {
-    final map = <DateTime, List<ScheduleModel>>{};
-    for (final s in lista) {
-      final key = DateTime(s.data.year, s.data.month, s.data.day);
-      map.putIfAbsent(key, () => []).add(s);
-    }
-    return map;
-  }
+  Map<DateTime, List<ScheduleModel>> _agrupar(List<ScheduleModel> lista) =>
+      groupByDay(lista);
 
   Future<void> _fetch() async {
     final result = await ApiService.get('/schedules?limit=1000');
@@ -83,43 +77,11 @@ class CalendarPageState extends State<CalendarPage> {
     }
   }
 
-  List<ScheduleModel> _eventsForDay(DateTime day) {
-    final key = DateTime(day.year, day.month, day.day);
-    return _events[key] ?? [];
-  }
+  List<ScheduleModel> _eventsForDay(DateTime day) =>
+      eventsForDay(_events, day);
 
-  _DayStatus _statusForDay(DateTime day) {
-    final events = _eventsForDay(day);
-    if (events.isEmpty) return _DayStatus.vazio;
-
-    final trabalhos = events.where((s) => !s.isCompromisso).toList();
-    final compromissos = events.where((s) => s.isCompromisso).toList();
-
-    if (trabalhos.isEmpty && compromissos.isNotEmpty) {
-      return _DayStatus.somenteCompromisso;
-    }
-
-    final today = DateTime.now();
-    final dayOnly = DateTime(day.year, day.month, day.day);
-    final todayOnly = DateTime(today.year, today.month, today.day);
-    final isPastOrToday = !dayOnly.isAfter(todayOnly);
-    final allDone = trabalhos.every((s) => s.realizado);
-    final anyDone = trabalhos.any((s) => s.realizado);
-
-    _DayStatus base;
-    if (allDone) {
-      base = _DayStatus.concluido;
-    } else if (isPastOrToday && !anyDone) {
-      base = _DayStatus.naoRealizado;
-    } else if (isPastOrToday) {
-      base = _DayStatus.pendente;
-    } else {
-      base = _DayStatus.futuro;
-    }
-
-    if (compromissos.isEmpty) return base;
-    return _DayStatus.mistoComCompromisso;
-  }
+  DayStatus _statusForDay(DateTime day) =>
+      statusForDay(_eventsForDay(day), day);
 
   Future<void> _toggleRealizado(ScheduleModel s) async {
     if (s.isCompromisso) return;
@@ -245,7 +207,7 @@ class CalendarPageState extends State<CalendarPage> {
               calendarBuilders: CalendarBuilders(
                 markerBuilder: (ctx, day, events) {
                   if (events.isEmpty) return null;
-                  return _DayMarker(status: _statusForDay(day));
+                  return DayMarker(status: _statusForDay(day));
                 },
               ),
               calendarStyle: CalendarStyle(
@@ -306,49 +268,3 @@ class CalendarPageState extends State<CalendarPage> {
   }
 }
 
-class _DayMarker extends StatelessWidget {
-  final _DayStatus status;
-  const _DayMarker({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    switch (status) {
-      case _DayStatus.concluido:
-        return const Icon(Icons.check_circle, size: 14, color: AppColors.secondary);
-      case _DayStatus.pendente:
-        return _dot(Colors.amber);
-      case _DayStatus.naoRealizado:
-        return _dot(Colors.red);
-      case _DayStatus.futuro:
-        return _dot(AppColors.secondary);
-      case _DayStatus.somenteCompromisso:
-        return _square(AppColors.primaryLight);
-      case _DayStatus.mistoComCompromisso:
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _dot(AppColors.secondary),
-            const SizedBox(width: 2),
-            _square(AppColors.primaryLight),
-          ],
-        );
-      case _DayStatus.vazio:
-        return const SizedBox.shrink();
-    }
-  }
-
-  Widget _dot(Color color) => Container(
-        width: 10,
-        height: 10,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      );
-
-  Widget _square(Color color) => Container(
-        width: 8,
-        height: 8,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(2),
-        ),
-      );
-}

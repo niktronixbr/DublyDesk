@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 import '../../core/models/schedule_model.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../notification_service.dart';
+import '../../shared/widgets/calendar_day_marker.dart';
 
 /// Tipos de trabalho mais comuns sugeridos no autocomplete.
 const _tiposTrabalhoSugeridos = <String>[
@@ -230,11 +232,13 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
   }
 
   Future<void> _selecionarData() async {
-    final picked = await showDatePicker(
+    final picked = await showDialog<DateTime>(
       context: context,
-      initialDate: _dataSelecionada ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
+      builder: (_) => _CalendarDatePickerDialog(
+        initialDate: _dataSelecionada,
+        schedules: widget.escalasExistentes,
+        excludeId: widget.item?.id,
+      ),
     );
     if (picked != null) setState(() => _dataSelecionada = picked);
   }
@@ -368,7 +372,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
       final body = <String, dynamic>{
         'tipo': _tipo,
         'projeto': _projeto.text.trim(),
-        'produtora': isCompromisso ? '' : _produtora.text.trim(),
+        if (!isCompromisso) 'produtora': _produtora.text.trim(),
         if (!isCompromisso) 'diretor': _diretor.text.trim(),
         'data': inicioDate.toIso8601String(),
         'hora_inicio': _horaInicio.text.trim(),
@@ -864,6 +868,132 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CalendarDatePickerDialog extends StatefulWidget {
+  final DateTime? initialDate;
+  final List<ScheduleModel> schedules;
+  final int? excludeId;
+
+  const _CalendarDatePickerDialog({
+    this.initialDate,
+    required this.schedules,
+    this.excludeId,
+  });
+
+  @override
+  State<_CalendarDatePickerDialog> createState() =>
+      _CalendarDatePickerDialogState();
+}
+
+class _CalendarDatePickerDialogState extends State<_CalendarDatePickerDialog> {
+  late DateTime _focusedDay;
+  DateTime? _selectedDay;
+  late Map<DateTime, List<ScheduleModel>> _events;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusedDay = widget.initialDate ?? DateTime.now();
+    _selectedDay = widget.initialDate;
+    final filtered = widget.excludeId == null
+        ? widget.schedules
+        : widget.schedules.where((s) => s.id != widget.excludeId).toList();
+    _events = groupByDay(filtered);
+  }
+
+  List<ScheduleModel> _eventsForDay(DateTime day) =>
+      eventsForDay(_events, day);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 16, 8, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TableCalendar<ScheduleModel>(
+              focusedDay: _focusedDay,
+              firstDay: DateTime(2020),
+              lastDay: DateTime(2100),
+              locale: 'pt_BR',
+              selectedDayPredicate: (day) =>
+                  _selectedDay != null && isSameDay(_selectedDay, day),
+              onDaySelected: (selected, focused) {
+                setState(() {
+                  _selectedDay = selected;
+                  _focusedDay = focused;
+                });
+              },
+              onPageChanged: (focused) =>
+                  setState(() => _focusedDay = focused),
+              eventLoader: _eventsForDay,
+              calendarBuilders: CalendarBuilders(
+                markerBuilder: (ctx, day, events) {
+                  if (events.isEmpty) return null;
+                  return DayMarker(
+                    status: statusForDay(events, day),
+                  );
+                },
+              ),
+              calendarStyle: CalendarStyle(
+                markersMaxCount: 0,
+                todayDecoration: BoxDecoration(
+                  color: AppColors.primaryLight.withValues(alpha: 0.35),
+                  shape: BoxShape.circle,
+                ),
+                selectedDecoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+                weekendTextStyle:
+                    TextStyle(color: theme.colorScheme.onSurface),
+                defaultTextStyle:
+                    TextStyle(color: theme.colorScheme.onSurface),
+                outsideTextStyle: TextStyle(color: theme.dividerColor),
+              ),
+              headerStyle: HeaderStyle(
+                formatButtonVisible: false,
+                titleCentered: true,
+                titleTextStyle: theme.textTheme.titleMedium!,
+                leftChevronIcon: Icon(
+                  Icons.chevron_left,
+                  color: theme.colorScheme.onSurface,
+                ),
+                rightChevronIcon: Icon(
+                  Icons.chevron_right,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              daysOfWeekHeight: 32,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: _selectedDay == null
+                      ? null
+                      : () => Navigator.pop(context, _selectedDay),
+                  child: const Text('Selecionar'),
+                ),
+                const SizedBox(width: 4),
+              ],
+            ),
+          ],
         ),
       ),
     );

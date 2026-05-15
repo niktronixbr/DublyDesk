@@ -142,7 +142,7 @@ class ScheduleCard extends StatelessWidget {
                           isCompromisso
                               ? (schedule.observacao?.isNotEmpty == true
                                   ? schedule.observacao!
-                                  : 'Compromisso')
+                                  : '')
                               : (schedule.diretor != null &&
                                       schedule.diretor!.isNotEmpty
                                   ? '${schedule.produtora} · Dir. ${schedule.diretor}'
@@ -199,27 +199,22 @@ class ScheduleCard extends StatelessWidget {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                if (isCompromisso)
-                                  Text(
-                                    'COMPROMISSO',
-                                    style: AppTheme.labelCaps(color: accentGreen),
-                                  )
-                                else if (!schedule.remunerado)
-                                  Text(
-                                    'Não remunerado',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: secondaryColor,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  )
-                                else
-                                  Text(
-                                    _moeda.format(schedule.valorTotal),
-                                    style: theme.textTheme.titleMedium?.copyWith(
-                                      color: accentGreen,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
+                                if (!isCompromisso)
+                                  schedule.remunerado
+                                      ? Text(
+                                          _moeda.format(schedule.valorTotal),
+                                          style: theme.textTheme.titleMedium?.copyWith(
+                                            color: accentGreen,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        )
+                                      : Text(
+                                          'Não remunerado',
+                                          style: theme.textTheme.bodySmall?.copyWith(
+                                            color: secondaryColor,
+                                            fontStyle: FontStyle.italic,
+                                          ),
+                                        ),
                                 if (!isCompromisso &&
                                     schedule.tipoTrabalho != null &&
                                     schedule.tipoTrabalho!.isNotEmpty)
