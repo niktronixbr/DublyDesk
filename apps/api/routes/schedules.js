@@ -313,7 +313,7 @@ router.put('/:id', scheduleUpdateValidation, validateRequest, async (req, res) =
     const sets = entradas.map(([chave], i) => `${chave} = $${i + 1}`);
     const valores = entradas.map(([, valor]) => valor);
 
-    valores.push(id);
+    valores.push(numId);
     valores.push(req.user.id);
 
     const query = `

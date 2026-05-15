@@ -95,6 +95,7 @@ class ScheduleModel {
   }
 
   Map<String, dynamic> toJson() => {
+        'id': id,
         'projeto': projeto,
         'produtora': produtora,
         'diretor': diretor,
