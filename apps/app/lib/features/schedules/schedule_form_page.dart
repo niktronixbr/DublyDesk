@@ -337,7 +337,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
       if (_temConflito(inicioDate, fimDate)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Período indisponível! Já existe uma escala nesse horário.'),
+            content: Text('Horário indisponível — já existe um agendamento nesse período.'),
             backgroundColor: AppColors.error,
           ),
         );
