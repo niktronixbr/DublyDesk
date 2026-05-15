@@ -13,7 +13,8 @@ import 'shared/widgets/user_avatar.dart';
 class CalendarPage extends StatefulWidget {
   final List<ScheduleModel>? escalas;
   final VoidCallback? onToggleView;
-  const CalendarPage({super.key, this.escalas, this.onToggleView});
+  final VoidCallback? onScheduleChanged;
+  const CalendarPage({super.key, this.escalas, this.onToggleView, this.onScheduleChanged});
 
   @override
   State<CalendarPage> createState() => CalendarPageState();
@@ -41,6 +42,14 @@ class CalendarPageState extends State<CalendarPage> {
   }
 
   Future<void> refresh() => _fetch();
+
+  void _onMutated() {
+    if (widget.onScheduleChanged != null) {
+      widget.onScheduleChanged!();
+    } else {
+      _fetch();
+    }
+  }
 
   Future<void> _carregarUsuario() async {
     final nome = await AuthService.getUserName();
@@ -97,7 +106,7 @@ class CalendarPageState extends State<CalendarPage> {
       '/schedules/${s.id}',
       {'realizado': !s.realizado},
     );
-    if (result['success'] == true) _fetch();
+    if (result['success'] == true) _onMutated();
   }
 
   Future<void> _deletar(ScheduleModel s) async {
@@ -125,7 +134,7 @@ class CalendarPageState extends State<CalendarPage> {
     );
     if (confirm == true) {
       await ApiService.delete('/schedules/${s.id}');
-      _fetch();
+      _onMutated();
     }
   }
 
@@ -139,7 +148,7 @@ class CalendarPageState extends State<CalendarPage> {
         ),
       ),
     );
-    _fetch();
+    _onMutated();
   }
 
   @override

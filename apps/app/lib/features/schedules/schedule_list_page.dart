@@ -17,7 +17,8 @@ import 'schedule_form_page.dart';
 class ScheduleListPage extends StatefulWidget {
   final ThemeService? themeService;
   final VoidCallback? onToggleView;
-  const ScheduleListPage({super.key, this.themeService, this.onToggleView});
+  final VoidCallback? onScheduleChanged;
+  const ScheduleListPage({super.key, this.themeService, this.onToggleView, this.onScheduleChanged});
 
   @override
   State<ScheduleListPage> createState() => ScheduleListPageState();
@@ -26,6 +27,14 @@ class ScheduleListPage extends StatefulWidget {
 class ScheduleListPageState extends State<ScheduleListPage> {
   /// Permite que o shell de navegação dispare um refresh externo.
   Future<void> refresh() => _fetchSchedules();
+
+  void _onMutated() {
+    if (widget.onScheduleChanged != null) {
+      widget.onScheduleChanged!();
+    } else {
+      _fetchSchedules();
+    }
+  }
 
   /// Recarrega os dados do usuário (nome + avatar) a partir do SharedPreferences.
   /// Chamado pelo shell de navegação ao retornar à aba de Escalas.
@@ -229,7 +238,7 @@ class ScheduleListPageState extends State<ScheduleListPage> {
           escalasExistentes: _schedules,
         ),
       ),
-    ).then((_) => _fetchSchedules());
+    ).then((_) => _onMutated());
   }
 
   Future<void> _toggleRealizado(ScheduleModel item) async {
@@ -246,7 +255,7 @@ class ScheduleListPageState extends State<ScheduleListPage> {
     );
 
     if (result['success'] == true) {
-      await _fetchSchedules();
+      _onMutated();
     } else {
       _snack(result['error'] ?? 'Não foi possível atualizar a escala.');
     }
@@ -257,7 +266,7 @@ class ScheduleListPageState extends State<ScheduleListPage> {
 
     if (result['success'] == true) {
       await NotificationService.cancelAgendaNotifications(id);
-      await _fetchSchedules();
+      _onMutated();
     } else {
       _snack(result['error'] ?? 'Não foi possível apagar a escala.');
     }

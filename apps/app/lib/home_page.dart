@@ -61,10 +61,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
+  void _onScheduleChanged() {
+    _calendarKey.currentState?.refresh();
+    _listKey.currentState?.refresh();
+    _financeKey.currentState?.refresh();
+  }
+
   late final List<Widget> _pages = [
     CalendarPage(
       key: _calendarKey,
       onToggleView: () => setState(() => _showListMode = true),
+      onScheduleChanged: _onScheduleChanged,
     ),
     const SizedBox.shrink(), // placeholder para a aba "Novo"
     FinancePage(key: _financeKey),
@@ -72,6 +79,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     ScheduleListPage(
       key: _listKey,
       onToggleView: () => setState(() => _showListMode = false),
+      onScheduleChanged: _onScheduleChanged,
     ),
   ];
 
