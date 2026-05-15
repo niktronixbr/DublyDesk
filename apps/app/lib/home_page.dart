@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'calendar_page.dart';
+import 'core/services/schedule_cache_service.dart';
 import 'core/services/theme_service.dart';
 import 'features/auth/biometric_lock_page.dart';
 import 'features/profile/profile_page.dart';
@@ -77,9 +78,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   int get _effectiveIndex => _index == 0 && _showListMode ? 4 : _index;
 
   Future<void> _abrirNovo() async {
+    final cached = await ScheduleCacheService.load();
+    if (!mounted) return;
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const ScheduleFormPage()),
+      MaterialPageRoute(
+        builder: (_) => ScheduleFormPage(escalasExistentes: cached),
+      ),
     );
     _calendarKey.currentState?.refresh();
     _financeKey.currentState?.refresh();
