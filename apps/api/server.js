@@ -194,4 +194,9 @@ async function startServer() {
   });
 }
 
-startServer();
+// Só inicia o listener se executado diretamente (não em require para tests)
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = app;
