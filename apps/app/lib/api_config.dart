@@ -1,1 +1,1 @@
-const String baseUrl = 'https://dublydesk.niktronix.com.br';
+const String baseUrl = 'https://api.dublydesk.com';

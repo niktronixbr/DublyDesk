@@ -2,7 +2,7 @@
 
 Aplicativo mobile para gestão de escalas e finanças de profissionais de dublagem. Monorepo com Flutter app (`apps/app`) e API Node.js/Express (`apps/api`), PostgreSQL como banco de dados.
 
-**Deploy:** API em `https://dublydesk.niktronix.com.br` (VPS Hostinger via EasyPanel). GitHub: `https://github.com/niktronixbr/DublyDesk`.
+**Deploy:** API em `https://api.dublydesk.com` (VPS Hostinger via EasyPanel). GitHub: `https://github.com/niktronixbr/DublyDesk`.
 
 ## Estrutura
 
