@@ -6,6 +6,7 @@ import 'package:local_auth/local_auth.dart';
 
 import 'auth_service.dart';
 import 'core/app_navigator.dart';
+import 'core/services/billing_service.dart';
 import 'core/services/entitlement_service.dart';
 import 'core/services/theme_service.dart';
 import 'core/theme/app_theme.dart';
@@ -115,6 +116,7 @@ class _AuthGateState extends State<AuthGate> {
 
     // Refresh em background — não bloqueia navegação
     unawaited(EntitlementService.refresh());
+    unawaited(BillingService.init());
 
     final localAuth = LocalAuthentication();
     final hasBiometrics = await localAuth.canCheckBiometrics;
