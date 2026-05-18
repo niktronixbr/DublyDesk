@@ -67,6 +67,26 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>> patch(
+    String endpoint,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final headers = await AuthService.authHeaders();
+      final response = await http
+          .patch(
+            Uri.parse('$baseUrl$endpoint'),
+            headers: headers,
+            body: jsonEncode(body),
+          )
+          .timeout(_timeout);
+      return _handle(response);
+    } catch (e) {
+      debugPrint('ApiService PATCH $endpoint: $e');
+      return {'success': false, 'error': 'Falha na conexão.', 'data': null};
+    }
+  }
+
   static Future<Map<String, dynamic>> delete(String endpoint) async {
     try {
       final headers = await AuthService.authHeaders();
