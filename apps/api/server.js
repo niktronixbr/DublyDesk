@@ -145,6 +145,54 @@ async function createTables() {
       ON subscriptions(user_id, status, current_period_end);
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS subscription_events (
+        id SERIAL PRIMARY KEY,
+        subscription_id INTEGER REFERENCES subscriptions(id) ON DELETE CASCADE,
+        type TEXT NOT NULL,
+        raw_payload JSONB NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS receipts (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        schedule_id INTEGER NOT NULL REFERENCES schedules(id) ON DELETE CASCADE,
+        pdf_path TEXT NOT NULL,
+        sent_email TEXT NULL,
+        sent_at TIMESTAMPTZ NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_receipts_user
+      ON receipts(user_id, created_at DESC);
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS analytics_events (
+        id BIGSERIAL PRIMARY KEY,
+        user_id INTEGER NULL REFERENCES users(id) ON DELETE SET NULL,
+        session_id TEXT NULL,
+        event_type TEXT NOT NULL,
+        payload JSONB,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_events_user_type
+      ON analytics_events(user_id, event_type, created_at DESC);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_events_type_time
+      ON analytics_events(event_type, created_at DESC);
+    `);
+
     console.log('✅ Tabelas e índices garantidos');
   } catch (err) {
     console.error('❌ Erro ao criar tabelas:', err);
