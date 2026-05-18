@@ -4,7 +4,7 @@ const fs = require('fs');
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+const { sendEmail } = require('../services/email_sender');
 const rateLimit = require('express-rate-limit');
 const multer = require('multer');
 const pool = require('../db');
@@ -180,43 +180,24 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
       [userId, token, expiresAt]
     );
 
-    // Suporta tanto SMTP_* quanto EMAIL_* como nomes alternativos de variável
-    const smtpHost = process.env.SMTP_HOST ?? (process.env.EMAIL_USER ? 'smtp.gmail.com' : null);
-    const smtpUser = process.env.SMTP_USER ?? process.env.EMAIL_USER ?? null;
-    const smtpPass = process.env.SMTP_PASS ?? process.env.EMAIL_PASS ?? null;
-    const smtpPort = parseInt(process.env.SMTP_PORT ?? '587');
-
-    if (smtpHost && smtpUser && smtpPass) {
-      const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: false,
-        auth: { user: smtpUser, pass: smtpPass },
+    try {
+      console.log(`[SMTP] Enviando código para: ${email}`);
+      await sendEmail({
+        to: email,
+        subject: 'Redefinição de senha — DublyDesk',
+        text: `Seu código de redefinição de senha é: ${token}\n\nEsse código é válido por 1 hora.\nSe você não solicitou isso, ignore este email.`,
+        html: `
+          <div style="font-family:sans-serif;max-width:400px;margin:auto">
+            <h2>DublyDesk — Redefinição de senha</h2>
+            <p>Use o código abaixo no app para criar uma nova senha:</p>
+            <h1 style="letter-spacing:8px;color:#6C63FF">${token}</h1>
+            <p style="color:#888">Válido por 1 hora. Se não foi você, ignore este email.</p>
+          </div>`,
       });
-
-      try {
-        console.log(`[SMTP] Enviando código para: ${email} | host: ${smtpHost}:${smtpPort}`);
-        await transporter.sendMail({
-          from: `"DublyDesk" <${smtpUser}>`,
-          to: email,
-          subject: 'Redefinição de senha — DublyDesk',
-          text: `Seu código de redefinição de senha é: ${token}\n\nEsse código é válido por 1 hora.\nSe você não solicitou isso, ignore este email.`,
-          html: `
-            <div style="font-family:sans-serif;max-width:400px;margin:auto">
-              <h2>DublyDesk — Redefinição de senha</h2>
-              <p>Use o código abaixo no app para criar uma nova senha:</p>
-              <h1 style="letter-spacing:8px;color:#6C63FF">${token}</h1>
-              <p style="color:#888">Válido por 1 hora. Se não foi você, ignore este email.</p>
-            </div>`,
-        });
-        console.log(`[SMTP] Email enviado com sucesso para: ${email}`);
-      } catch (smtpErr) {
-        console.error(`[SMTP ERROR] Falha ao enviar para ${email} | code: ${smtpErr.code} | msg: ${smtpErr.message}`);
-        throw smtpErr;
-      }
-    } else {
-      console.warn('[SMTP] Credenciais não configuradas — defina SMTP_HOST+SMTP_USER+SMTP_PASS ou EMAIL_USER+EMAIL_PASS no .env');
-      console.log(`[DEV] Código de recuperação para ${email}: ${token}`);
+      console.log(`[SMTP] Email enviado com sucesso para: ${email}`);
+    } catch (smtpErr) {
+      console.error(`[SMTP ERROR] Falha ao enviar para ${email} | code: ${smtpErr.code} | msg: ${smtpErr.message}`);
+      throw smtpErr;
     }
 
     res.json({ message: 'Se o email estiver cadastrado, você receberá o código.' });
