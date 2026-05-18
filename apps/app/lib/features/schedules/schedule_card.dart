@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/models/entitlement_model.dart';
 import '../../core/models/schedule_model.dart';
+import '../../core/services/entitlement_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../pro/pro_page.dart';
+import '../pro/widgets/pro_badge.dart';
 
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
@@ -20,6 +24,7 @@ class ScheduleCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onDelete;
   final VoidCallback onToggleRealizado;
+  final VoidCallback? onGenerateReceipt;
   final bool compact;
 
   const ScheduleCard({
@@ -28,6 +33,7 @@ class ScheduleCard extends StatelessWidget {
     required this.onTap,
     required this.onDelete,
     required this.onToggleRealizado,
+    this.onGenerateReceipt,
     this.compact = false,
   });
 
@@ -228,6 +234,10 @@ class ScheduleCard extends StatelessWidget {
                             ),
                           ],
                         ),
+                        if (!isCompromisso && schedule.realizado && schedule.remunerado) ...[
+                          const SizedBox(height: 12),
+                          _BotaoRecibo(onTap: onGenerateReceipt),
+                        ],
                       ],
                     ),
                   ),
@@ -337,6 +347,62 @@ class _InfoPendenteBadge extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _BotaoRecibo extends StatelessWidget {
+  final VoidCallback? onTap;
+  const _BotaoRecibo({this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<EntitlementModel>(
+      valueListenable: EntitlementService.current,
+      builder: (context, ent, _) {
+        final theme = Theme.of(context);
+        return InkWell(
+          onTap: () {
+            if (ent.pro) {
+              onTap?.call();
+            } else {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ProPage()),
+              );
+            }
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: theme.colorScheme.primary.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.receipt_long,
+                    size: 16, color: theme.colorScheme.primary),
+                const SizedBox(width: 6),
+                Text(
+                  'Gerar recibo',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (!ent.pro) ...[
+                  const SizedBox(width: 6),
+                  const ProBadge(fontSize: 8),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
