@@ -3,6 +3,8 @@ const { body, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
 const { getEntitlement } = require('../services/entitlement');
 const { createCheckoutSession, PRICE_IDS } = require('../services/stripe');
+const pool = require('../db');
+const { stripe } = require('../services/stripe');
 
 router.get('/me/entitlements', auth, async (req, res) => {
   try {
@@ -39,5 +41,96 @@ router.post(
     }
   }
 );
+
+router.post('/billing/stripe/webhook', async (req, res) => {
+  const signature = req.headers['stripe-signature'];
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, signature, webhookSecret);
+  } catch (err) {
+    console.error('❌ Stripe webhook signature invalid:', err.message);
+    return res.status(400).json({ error: 'Invalid signature' });
+  }
+
+  try {
+    await handleStripeEvent(event);
+    res.status(200).json({ received: true });
+  } catch (err) {
+    console.error('❌ Stripe webhook handler:', err);
+    res.status(500).json({ error: 'Handler error' });
+  }
+});
+
+async function handleStripeEvent(event) {
+  const sub = event.data.object;
+  const userId = parseInt(sub.metadata?.user_id, 10);
+  if (!userId) {
+    console.warn('⚠️  Evento Stripe sem user_id em metadata:', event.id);
+    return;
+  }
+
+  switch (event.type) {
+    case 'customer.subscription.created':
+    case 'customer.subscription.updated': {
+      const productId = sub.items?.data?.[0]?.price?.metadata?.plan
+        || sub.items?.data?.[0]?.price?.id
+        || 'unknown';
+      const status = mapStripeStatus(sub.status);
+      const currentPeriodEnd = new Date(sub.current_period_end * 1000);
+      const trialEndsAt = sub.trial_end ? new Date(sub.trial_end * 1000) : null;
+
+      await pool.query(
+        `INSERT INTO subscriptions
+           (user_id, source, external_id, product_id, status, current_period_end, cancel_at_period_end, trial_ends_at, updated_at)
+         VALUES ($1, 'stripe', $2, $3, $4, $5, $6, $7, NOW())
+         ON CONFLICT (source, external_id) DO UPDATE SET
+           status = EXCLUDED.status,
+           current_period_end = EXCLUDED.current_period_end,
+           cancel_at_period_end = EXCLUDED.cancel_at_period_end,
+           trial_ends_at = EXCLUDED.trial_ends_at,
+           updated_at = NOW()`,
+        [userId, sub.id, productId, status, currentPeriodEnd, sub.cancel_at_period_end || false, trialEndsAt]
+      );
+      break;
+    }
+    case 'customer.subscription.deleted': {
+      await pool.query(
+        `UPDATE subscriptions SET status = 'expired', updated_at = NOW()
+         WHERE source = 'stripe' AND external_id = $1`,
+        [sub.id]
+      );
+      break;
+    }
+    default:
+      console.log(`ℹ️  Stripe event ignorado: ${event.type}`);
+  }
+
+  // Audit trail
+  const { rows: subRows } = await pool.query(
+    `SELECT id FROM subscriptions WHERE source = 'stripe' AND external_id = $1`,
+    [sub.id]
+  );
+  if (subRows.length > 0) {
+    await pool.query(
+      `INSERT INTO subscription_events (subscription_id, type, raw_payload) VALUES ($1, $2, $3)`,
+      [subRows[0].id, event.type, JSON.stringify(event)]
+    );
+  }
+}
+
+function mapStripeStatus(stripeStatus) {
+  const map = {
+    trialing: 'trialing',
+    active: 'active',
+    past_due: 'past_due',
+    canceled: 'cancelled',
+    unpaid: 'past_due',
+    incomplete: 'past_due',
+    incomplete_expired: 'expired',
+  };
+  return map[stripeStatus] || 'expired';
+}
 
 module.exports = router;

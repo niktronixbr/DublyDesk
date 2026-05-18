@@ -25,6 +25,10 @@ app.use(cors({
   origin: allowedOrigin === '*' ? true : allowedOrigin,
 }));
 
+// Stripe webhook precisa do raw body pra validação de assinatura HMAC.
+// Esse middleware roda ANTES do express.json() pra preservar o buffer original.
+app.use('/billing/stripe/webhook', express.raw({ type: 'application/json' }));
+
 app.use(express.json());
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
