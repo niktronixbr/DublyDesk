@@ -248,6 +248,30 @@ async function createTables() {
   } catch (err) {
     console.error('❌ Erro na migration schedules.tipo:', err);
   }
+
+  try {
+    await pool.query(`
+      ALTER TABLE schedules ADD COLUMN IF NOT EXISTS status_pagamento TEXT
+      DEFAULT 'pendente'
+    `);
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'schedules_status_pagamento_check'
+        ) THEN
+          ALTER TABLE schedules
+          ADD CONSTRAINT schedules_status_pagamento_check
+          CHECK (status_pagamento IN ('pendente','pago','parcial','atrasado'));
+        END IF;
+      END $$;
+    `);
+    await pool.query(`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS valor_pago NUMERIC(10,2) NOT NULL DEFAULT 0`);
+    await pool.query(`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS vencimento DATE NULL`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_schedules_status_pagamento ON schedules(user_id, status_pagamento)`);
+  } catch (err) {
+    console.error('❌ Erro na migration schedules.pagamento:', err);
+  }
 }
 
 app.get('/health', (req, res) => {
