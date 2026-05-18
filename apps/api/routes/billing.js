@@ -5,6 +5,7 @@ const { getEntitlement } = require('../services/entitlement');
 const { createCheckoutSession, PRICE_IDS } = require('../services/stripe');
 const pool = require('../db');
 const { stripe } = require('../services/stripe');
+const { verifySubscription, mapPlayState } = require('../services/play_billing');
 
 router.get('/me/entitlements', auth, async (req, res) => {
   try {
@@ -38,6 +39,46 @@ router.post(
     } catch (err) {
       console.error('❌ stripe/checkout:', err);
       res.status(500).json({ error: 'Erro ao criar sessão de checkout' });
+    }
+  }
+);
+
+router.post(
+  '/billing/play/verify',
+  auth,
+  body('purchaseToken').isString().notEmpty(),
+  body('productId').isIn(['pro_monthly', 'pro_annual']),
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: 'Parâmetros inválidos', details: errors.array() });
+    }
+
+    const { purchaseToken, productId } = req.body;
+    const packageName = process.env.PLAY_PACKAGE_NAME;
+
+    try {
+      const playData = await verifySubscription({ packageName, subscriptionId: productId, purchaseToken });
+      const status = mapPlayState(playData.subscriptionState);
+      const expiryRaw = playData.lineItems?.[0]?.expiryTime;
+      const currentPeriodEnd = expiryRaw ? new Date(expiryRaw) : new Date();
+
+      await pool.query(
+        `INSERT INTO subscriptions
+           (user_id, source, external_id, product_id, status, current_period_end, updated_at)
+         VALUES ($1, 'play', $2, $3, $4, $5, NOW())
+         ON CONFLICT (source, external_id) DO UPDATE SET
+           status = EXCLUDED.status,
+           current_period_end = EXCLUDED.current_period_end,
+           updated_at = NOW()`,
+        [req.user.id, purchaseToken, productId, status, currentPeriodEnd]
+      );
+
+      const ent = await getEntitlement(req.user.id);
+      res.json(ent);
+    } catch (err) {
+      console.error('❌ play/verify:', err);
+      res.status(500).json({ error: 'Erro ao validar compra Play' });
     }
   }
 );
