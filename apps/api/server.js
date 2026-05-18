@@ -118,6 +118,33 @@ async function createTables() {
       );
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS subscriptions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        source TEXT NOT NULL CHECK (source IN ('play', 'stripe')),
+        external_id TEXT NOT NULL,
+        product_id TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('trialing','active','past_due','cancelled','expired')),
+        current_period_end TIMESTAMPTZ NOT NULL,
+        cancel_at_period_end BOOLEAN NOT NULL DEFAULT FALSE,
+        trial_ends_at TIMESTAMPTZ NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE (source, external_id)
+      );
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_subscriptions_user
+      ON subscriptions(user_id);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_subscriptions_active
+      ON subscriptions(user_id, status, current_period_end);
+    `);
+
     console.log('✅ Tabelas e índices garantidos');
   } catch (err) {
     console.error('❌ Erro ao criar tabelas:', err);
@@ -187,16 +214,15 @@ app.use('/diretores', diretoresRoutes);
 
 const PORT = process.env.PORT || 3000;
 
-async function startServer() {
-  await createTables();
-  app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
-  });
-}
+// Sempre garante schema (idempotente via CREATE TABLE IF NOT EXISTS).
+// Disparado fire-and-forget; testes aguardam um pequeno delay no beforeAll.
+createTables();
 
 // Só inicia o listener se executado diretamente (não em require para tests)
 if (require.main === module) {
-  startServer();
+  app.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
+  });
 }
 
 module.exports = app;
