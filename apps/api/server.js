@@ -13,6 +13,7 @@ const schedulesRoutes = require('./routes/schedules');
 const produtorasRoutes = require('./routes/produtoras');
 const projetosRoutes = require('./routes/projetos');
 const diretoresRoutes = require('./routes/diretores');
+const billingRoutes = require('./routes/billing');
 
 const app = express();
 
@@ -283,6 +284,7 @@ app.use('/schedules', schedulesRoutes);
 app.use('/produtoras', produtorasRoutes);
 app.use('/projetos', projetosRoutes);
 app.use('/diretores', diretoresRoutes);
+app.use('/', billingRoutes);
 
 const PORT = process.env.PORT || 3000;
 
