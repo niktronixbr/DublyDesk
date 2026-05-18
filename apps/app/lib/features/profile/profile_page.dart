@@ -14,8 +14,10 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/user_avatar.dart';
 import '../auth/change_password_page.dart';
+import '../payments/payments_dashboard_page.dart';
 import '../pro/pro_page.dart';
 import '../pro/widgets/pro_badge.dart';
+import '../pro/widgets/pro_gate.dart';
 
 class ProfilePage extends StatefulWidget {
   final ThemeService themeService;
@@ -210,6 +212,19 @@ class _ProfilePageState extends State<ProfilePage> {
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         children: [
           const _ProStatusCard(),
+          ProGate(
+            child: Card(
+              child: ListTile(
+                leading: const Icon(Icons.payments_outlined),
+                title: const Text('Pagamentos pendentes'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => const PaymentsDashboardPage()),
+                ),
+              ),
+            ),
+          ),
           Center(
             child: Stack(
               alignment: Alignment.center,
