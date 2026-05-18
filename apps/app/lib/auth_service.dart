@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'core/services/entitlement_service.dart';
+
 class AuthService {
   static const _tokenKey = 'auth_token';
   static const _userNameKey = 'user_name';
@@ -100,6 +102,7 @@ class AuthService {
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
+    await EntitlementService.clear();
     await prefs.remove(_userNameKey);
     await prefs.remove(_avatarUrlKey);
     await prefs.remove('schedules_cache');

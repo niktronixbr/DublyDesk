@@ -6,6 +6,7 @@ import 'package:local_auth/local_auth.dart';
 
 import 'auth_service.dart';
 import 'core/app_navigator.dart';
+import 'core/services/entitlement_service.dart';
 import 'core/services/theme_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/biometric_lock_page.dart';
@@ -89,6 +90,8 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _checkSession() async {
+    await EntitlementService.loadCached();
+
     final token = await AuthService.getToken();
 
     if (token == null || token.isEmpty) {
@@ -109,6 +112,9 @@ class _AuthGateState extends State<AuthGate> {
       _notificationsResynced = true;
       unawaited(NotificationService.resyncFromApi());
     }
+
+    // Refresh em background — não bloqueia navegação
+    unawaited(EntitlementService.refresh());
 
     final localAuth = LocalAuthentication();
     final hasBiometrics = await localAuth.canCheckBiometrics;
