@@ -136,4 +136,28 @@ router.post(
   }
 );
 
+router.get('/receipts/pending', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, projeto, produtora, diretor, data, valor_total, status_pagamento, valor_pago, vencimento
+         FROM schedules
+        WHERE user_id = $1
+          AND status_pagamento != 'pago'
+          AND realizado = TRUE
+        ORDER BY data DESC`,
+      [req.user.id]
+    );
+
+    const totalPendente = rows.reduce(
+      (sum, r) => sum + parseFloat(r.valor_total) - parseFloat(r.valor_pago),
+      0
+    );
+
+    res.json({ items: rows, totalPendente: Math.round(totalPendente * 100) / 100 });
+  } catch (err) {
+    console.error('❌ /receipts/pending:', err);
+    res.status(500).json({ error: 'Erro ao listar pendentes' });
+  }
+});
+
 module.exports = router;

@@ -336,6 +336,37 @@ router.put('/:id', scheduleUpdateValidation, validateRequest, async (req, res) =
   }
 });
 
+// PATCH /schedules/:id/payment
+router.patch(
+  '/:id/payment',
+  body('status').isIn(['pendente', 'pago', 'parcial', 'atrasado']),
+  body('valorPago').optional().isFloat({ min: 0 }),
+  body('vencimento').optional().isISO8601(),
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: 'Parâmetros inválidos', details: errors.array() });
+    }
+
+    try {
+      const { rows } = await pool.query(
+        `UPDATE schedules
+            SET status_pagamento = $1,
+                valor_pago = COALESCE($2, valor_pago),
+                vencimento = COALESCE($3::date, vencimento)
+          WHERE id = $4 AND user_id = $5
+          RETURNING id, status_pagamento, valor_pago, vencimento`,
+        [req.body.status, req.body.valorPago ?? null, req.body.vencimento ?? null, req.params.id, req.user.id]
+      );
+      if (rows.length === 0) return res.status(404).json({ error: 'Escala não encontrada' });
+      res.json(rows[0]);
+    } catch (err) {
+      console.error('❌ PATCH /schedules/:id/payment:', err);
+      res.status(500).json({ error: 'Erro ao atualizar pagamento' });
+    }
+  }
+);
+
 // DELETE /schedules/:id
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
