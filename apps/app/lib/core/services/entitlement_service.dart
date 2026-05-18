@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/entitlement_model.dart';
 import 'api_service.dart';
+import 'pro_notifications_service.dart';
 
 class EntitlementService {
   static const _cacheKey = 'entitlement_cache';
@@ -47,6 +48,7 @@ class EntitlementService {
   static Future<void> updateFromJson(Map<String, dynamic> json) async {
     final model = EntitlementModel.fromJson(json);
     _current.value = model;
+    ProNotificationsService.scheduleTrialReminders(model); // fire-and-forget
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_cacheKey, jsonEncode(json));
   }
@@ -54,6 +56,7 @@ class EntitlementService {
   static Future<void> clear() async {
     _current.value = const EntitlementModel.free();
     _lastFetched = null;
+    await ProNotificationsService.cancelAll();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_cacheKey);
   }
