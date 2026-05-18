@@ -14,6 +14,7 @@ const produtorasRoutes = require('./routes/produtoras');
 const projetosRoutes = require('./routes/projetos');
 const diretoresRoutes = require('./routes/diretores');
 const billingRoutes = require('./routes/billing');
+const receiptsRoutes = require('./routes/receipts');
 
 const app = express();
 
@@ -289,6 +290,7 @@ app.use('/produtoras', produtorasRoutes);
 app.use('/projetos', projetosRoutes);
 app.use('/diretores', diretoresRoutes);
 app.use('/', billingRoutes);
+app.use('/', receiptsRoutes);
 
 const PORT = process.env.PORT || 3000;
 
