@@ -126,8 +126,8 @@ class ReceiptService {
     final response =
         await ApiService.patch('/schedules/$scheduleId/payment', {
       'status_pagamento': statusPagamento,
-      if (valorPago != null) 'valor_pago': valorPago,
-      if (vencimento != null) 'vencimento': vencimento.toIso8601String().split('T').first,
+      'valor_pago': ?valorPago,
+      'vencimento': ?vencimento?.toIso8601String().split('T').first,
     });
     return response['success'] == true;
   }
