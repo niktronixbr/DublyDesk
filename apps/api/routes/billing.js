@@ -2,7 +2,7 @@ const router = require('express').Router();
 const { body, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
 const { getEntitlement } = require('../services/entitlement');
-const { createCheckoutSession, PRICE_IDS } = require('../services/stripe');
+const { createCheckoutSession, createPortalSession, PRICE_IDS } = require('../services/stripe');
 const pool = require('../db');
 const { stripe } = require('../services/stripe');
 const { verifySubscription, mapPlayState } = require('../services/play_billing');
@@ -79,6 +79,65 @@ router.post(
     } catch (err) {
       console.error('❌ play/verify:', err);
       res.status(500).json({ error: 'Erro ao validar compra Play' });
+    }
+  }
+);
+
+router.post('/billing/restore', auth, async (req, res) => {
+  const packageName = process.env.PLAY_PACKAGE_NAME;
+
+  try {
+    const { rows: subs } = await pool.query(
+      `SELECT id, external_id, product_id FROM subscriptions
+        WHERE user_id = $1 AND source = 'play'`,
+      [req.user.id]
+    );
+
+    for (const sub of subs) {
+      try {
+        const playData = await verifySubscription({
+          packageName,
+          subscriptionId: sub.product_id,
+          purchaseToken: sub.external_id,
+        });
+        const status = mapPlayState(playData.subscriptionState);
+        const expiryRaw = playData.lineItems?.[0]?.expiryTime;
+        const currentPeriodEnd = expiryRaw ? new Date(expiryRaw) : new Date();
+        await pool.query(
+          `UPDATE subscriptions SET status = $1, current_period_end = $2, updated_at = NOW() WHERE id = $3`,
+          [status, currentPeriodEnd, sub.id]
+        );
+      } catch (err) {
+        console.warn(`⚠️  Não consegui re-validar sub ${sub.id}:`, err.message);
+      }
+    }
+
+    const ent = await getEntitlement(req.user.id);
+    res.json(ent);
+  } catch (err) {
+    console.error('❌ /billing/restore:', err);
+    res.status(500).json({ error: 'Erro ao restaurar compras' });
+  }
+});
+
+router.post(
+  '/billing/stripe/portal',
+  auth,
+  body('customerId').isString().notEmpty(),
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: 'customerId obrigatório' });
+    }
+    try {
+      const session = await createPortalSession({
+        customerId: req.body.customerId,
+        returnUrl: process.env.FRONTEND_WEB_URL || 'https://app.dublydesk.com',
+      });
+      res.json({ url: session.url });
+    } catch (err) {
+      console.error('❌ stripe/portal:', err);
+      res.status(500).json({ error: 'Erro ao abrir portal' });
     }
   }
 );
