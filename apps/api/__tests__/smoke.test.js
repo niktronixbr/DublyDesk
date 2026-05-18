@@ -4,8 +4,9 @@ const { cleanDatabase, closeDatabase } = require('./helpers/test_db');
 let app;
 
 beforeAll(async () => {
-  await cleanDatabase();
   app = require('../server');
+  await app.tablesReady;
+  await cleanDatabase();
 });
 
 afterAll(async () => {

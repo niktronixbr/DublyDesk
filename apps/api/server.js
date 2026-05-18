@@ -215,13 +215,22 @@ app.use('/diretores', diretoresRoutes);
 const PORT = process.env.PORT || 3000;
 
 // Sempre garante schema (idempotente via CREATE TABLE IF NOT EXISTS).
-// Disparado fire-and-forget; testes aguardam um pequeno delay no beforeAll.
-createTables();
+// A Promise é exposta como app.tablesReady para testes aguardarem deterministicamente
+// (em vez de setTimeout) e para o listener em produção só subir após o schema estar pronto.
+const tablesReady = createTables();
+app.tablesReady = tablesReady;
 
-// Só inicia o listener se executado diretamente (não em require para tests)
+// Só inicia o listener se executado diretamente (não em require para tests).
+// Aguarda tablesReady para evitar race em deploy: server não aceita requests
+// antes do schema estar garantido.
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
+  tablesReady.then(() => {
+    app.listen(PORT, () => {
+      console.log(`Servidor rodando na porta ${PORT}`);
+    });
+  }).catch((err) => {
+    console.error('❌ Falha ao garantir schema; servidor não iniciado:', err);
+    process.exit(1);
   });
 }
 

@@ -2,9 +2,8 @@ const pool = require('../db');
 const { cleanDatabase, closeDatabase } = require('./helpers/test_db');
 
 beforeAll(async () => {
-  require('../server'); // dispara createTables
-  // Pequena espera pra garantir que createTables rodou (createTables é async no startup)
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  const app = require('../server');
+  await app.tablesReady;
   await cleanDatabase();
 });
 
