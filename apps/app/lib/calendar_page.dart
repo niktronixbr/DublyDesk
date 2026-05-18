@@ -5,6 +5,7 @@ import 'auth_service.dart';
 import 'core/models/schedule_model.dart';
 import 'core/services/api_service.dart';
 import 'core/theme/app_colors.dart';
+import 'features/receipts/receipt_dialog.dart';
 import 'features/schedules/schedule_card.dart';
 import 'features/schedules/schedule_form_page.dart';
 import 'shared/widgets/calendar_day_marker.dart';
@@ -267,6 +268,7 @@ class CalendarPageState extends State<CalendarPage> {
                         onTap: () => _abrirEdicao(s),
                         onDelete: () => _deletar(s),
                         onToggleRealizado: () => _toggleRealizado(s),
+                        onGenerateReceipt: () => ReceiptDialog.show(context, s),
                       );
                     },
                   ),

@@ -11,6 +11,7 @@ import '../../core/theme/app_theme.dart';
 import '../../notification_service.dart';
 import '../../shared/widgets/user_avatar.dart';
 import '../profile/profile_page.dart';
+import '../receipts/receipt_dialog.dart';
 import 'schedule_card.dart';
 import 'schedule_form_page.dart';
 
@@ -872,6 +873,7 @@ class ScheduleListPageState extends State<ScheduleListPage> {
               onTap: () => _openForm(item: item),
               onDelete: () => _confirmarDelete(item.id),
               onToggleRealizado: () => _toggleRealizado(item),
+              onGenerateReceipt: () => ReceiptDialog.show(context, item),
             ),
           ),
       const SizedBox(height: 96),
