@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../auth_service.dart';
 import '../../core/app_navigator.dart';
+import '../../core/models/entitlement_model.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/entitlement_service.dart';
 import '../../core/services/theme_service.dart';
-import '../auth/change_password_page.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/user_avatar.dart';
+import '../auth/change_password_page.dart';
+import '../pro/pro_page.dart';
+import '../pro/widgets/pro_badge.dart';
 
 class ProfilePage extends StatefulWidget {
   final ThemeService themeService;
@@ -203,6 +209,7 @@ class _ProfilePageState extends State<ProfilePage> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         children: [
+          const _ProStatusCard(),
           Center(
             child: Stack(
               alignment: Alignment.center,
@@ -349,3 +356,103 @@ class _ProfilePageState extends State<ProfilePage> {
 }
 
 enum _AvatarAction { camera, gallery, remove }
+
+class _ProStatusCard extends StatelessWidget {
+  const _ProStatusCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<EntitlementModel>(
+      valueListenable: EntitlementService.current,
+      builder: (context, ent, _) {
+        final theme = Theme.of(context);
+        final dias = ent.daysUntilExpiry;
+        late final Color bgColor;
+        late final String titulo;
+        late final String? subtitulo;
+        late final String botaoLabel;
+
+        if (!ent.pro) {
+          bgColor = theme.colorScheme.surfaceContainer;
+          titulo = 'DublyDesk Pro';
+          subtitulo =
+              'Recibos PDF, cobrança organizada e mais. 7 dias grátis.';
+          botaoLabel = 'Conhecer Pro';
+        } else if (ent.trial) {
+          bgColor = const Color(0xFFFFF3CD);
+          titulo = 'Pro · Trial';
+          subtitulo = dias != null
+              ? 'Trial expira em $dias dia${dias == 1 ? '' : 's'}'
+              : 'Trial ativo';
+          botaoLabel = 'Gerenciar assinatura';
+        } else {
+          bgColor = AppColors.secondary.withValues(alpha: 0.18);
+          titulo = 'Pro · Ativo';
+          subtitulo = ent.until != null
+              ? 'Renova em ${DateFormat('d MMM y', 'pt_BR').format(ent.until!)}'
+              : null;
+          botaoLabel = 'Gerenciar assinatura';
+        }
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(titulo, style: theme.textTheme.titleMedium),
+                  const SizedBox(width: 8),
+                  if (ent.pro) const ProBadge(),
+                ],
+              ),
+              if (subtitulo != null) ...[
+                const SizedBox(height: 4),
+                Text(subtitulo, style: theme.textTheme.bodySmall),
+              ],
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ent.pro
+                    ? OutlinedButton(
+                        onPressed: () => _abrirGerenciamento(context, ent),
+                        child: Text(botaoLabel),
+                      )
+                    : FilledButton(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const ProPage()),
+                        ),
+                        child: Text(botaoLabel),
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _abrirGerenciamento(
+      BuildContext context, EntitlementModel ent) async {
+    // Play subscriptions: deep link pro Play Store
+    if (ent.source == 'play') {
+      final uri = Uri.parse(
+        'https://play.google.com/store/account/subscriptions?package=br.com.dublydesk.app',
+      );
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return;
+    }
+    // Stripe: TODO no Plano 3 (PWA web). Por enquanto, mensagem.
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Gerenciamento via web disponível em breve'),
+      ),
+    );
+  }
+}
