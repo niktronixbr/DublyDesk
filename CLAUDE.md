@@ -72,6 +72,17 @@ SMTP_PASS=senha_app_gmail
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_DB=dublagem
+
+# Stripe (cobrança web)
+STRIPE_SECRET_KEY=sk_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRICE_MONTHLY=price_...
+STRIPE_PRICE_ANNUAL=price_...
+FRONTEND_WEB_URL=https://app.dublydesk.com
+
+# Google Play (billing Android)
+PLAY_PACKAGE_NAME=br.com.dublydesk.app
+PLAY_SERVICE_ACCOUNT_PATH=./.secrets/play-service-account.json
 ```
 
 ## Rotas da API
@@ -91,6 +102,16 @@ POSTGRES_DB=dublagem
 | GET/POST | `/produtoras` | Produtoras do usuário |
 | GET/POST | `/projetos` | Projetos do usuário |
 | GET/POST | `/diretores` | Diretores do usuário |
+| GET | `/me/entitlements` | Estado da assinatura Pro |
+| POST | `/billing/stripe/checkout` | Cria Stripe Checkout Session (web) |
+| POST | `/billing/stripe/webhook` | Recebe eventos Stripe (HMAC) |
+| POST | `/billing/stripe/portal` | Cria Stripe Customer Portal Session |
+| POST | `/billing/play/verify` | Valida purchaseToken Android |
+| POST | `/billing/restore` | Re-valida compras Play do usuário |
+| POST | `/receipts/generate` | Gera PDF de recibo (Pro) |
+| POST | `/receipts/:id/send-email` | Envia recibo por email (Pro) |
+| GET | `/receipts/pending` | Lista escalas a receber + total |
+| PATCH | `/schedules/:id/payment` | Atualiza status de pagamento |
 | GET | `/health` | Health check |
 
 Todas as rotas (exceto `/auth/register`, `/auth/login`, `/auth/forgot-password`, `/auth/reset-password` e `/health`) requerem `Authorization: Bearer <token>`.
