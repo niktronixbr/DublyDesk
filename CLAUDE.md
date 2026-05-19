@@ -1,8 +1,11 @@
 # DublyDesk
 
-Aplicativo mobile para gestão de escalas e finanças de profissionais de dublagem. Monorepo com Flutter app (`apps/app`) e API Node.js/Express (`apps/api`), PostgreSQL como banco de dados.
+Aplicativo mobile para gestão de escalas e finanças de profissionais de dublagem. Monorepo com Flutter app (`apps/app`), API Node.js/Express (`apps/api`) e site institucional Next.js (`apps/web`), PostgreSQL como banco de dados.
 
-**Deploy:** API em `https://api.dublydesk.com` (VPS Hostinger via EasyPanel). GitHub: `https://github.com/niktronixbr/DublyDesk`.
+**Deploy:**
+- API em `https://api.dublydesk.com` (VPS Hostinger via EasyPanel)
+- Site em `https://dublydesk.com` (Vercel — landing + termos + privacidade)
+- GitHub: `https://github.com/niktronixbr/DublyDesk`
 
 ## Estrutura
 
@@ -10,6 +13,7 @@ Aplicativo mobile para gestão de escalas e finanças de profissionais de dublag
 apps/
   app/   ← Flutter (Dart) — mobile Android/iOS/Windows
   api/   ← Node.js/Express — REST API + PostgreSQL
+  web/   ← Next.js 16 + Tailwind v4 — landing + páginas legais
 ```
 
 ## Rodar localmente
@@ -27,6 +31,13 @@ node server.js         # sobe na porta 3000
 cd apps/app
 flutter pub get
 flutter run            # escolher dispositivo
+```
+
+### Site Next.js
+```bash
+cd apps/web
+npm install
+npm run dev            # sobe em http://localhost:3000
 ```
 
 ### Com Docker (API + banco)
@@ -53,6 +64,9 @@ docker compose up      # sobe PostgreSQL + API
 | Email | Nodemailer |
 | Rate limiting | express-rate-limit |
 | Validação | express-validator |
+| Site institucional | Next.js 16 (App Router) + Tailwind v4 + TypeScript |
+| Site hosting | Vercel (free tier, deploy automático via Git) |
+| Email do domínio | Cloudflare Email Routing (contato@ + dpo@ → Gmail) |
 
 ## Variáveis de ambiente (apps/api/.env)
 
@@ -134,6 +148,18 @@ refactor: refatoração sem mudança de comportamento
 style: formatação, lint
 docs:  documentação
 ```
+
+## Site institucional (apps/web)
+
+Next.js 16 com App Router + Tailwind v4. Hospedado em `https://dublydesk.com` (Vercel). Rotas:
+
+- `/` — landing placeholder ("em breve no Google Play")
+- `/termos` — Termos de Uso (qualificação PJ Niktronix, foro Osasco/SP)
+- `/privacidade` — Política de Privacidade LGPD (controlador, encarregado dpo@, bases legais)
+
+Emails do domínio via Cloudflare Email Routing (gratuito): `contato@dublydesk.com` e `dpo@dublydesk.com` encaminham pra `niktronix.br@gmail.com`.
+
+Guia completo de DNS + Vercel + Cloudflare: [Docs/website-setup.md](Docs/website-setup.md).
 
 ## Skills disponíveis
 
