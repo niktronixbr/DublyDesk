@@ -394,7 +394,8 @@ class _ProStatusCard extends StatelessWidget {
               'Recibos PDF, cobrança organizada e mais. 7 dias grátis.';
           botaoLabel = 'Conhecer Pro';
         } else if (ent.trial) {
-          bgColor = const Color(0xFFFFF3CD);
+          // tertiary (peach/laranja claro) com alpha respeita ambos os temas
+          bgColor = AppColors.tertiary.withValues(alpha: 0.18);
           titulo = 'Pro · Trial';
           subtitulo = dias != null
               ? 'Trial expira em $dias dia${dias == 1 ? '' : 's'}'

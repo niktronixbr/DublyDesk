@@ -16,6 +16,7 @@ class ProPage extends StatefulWidget {
 class _ProPageState extends State<ProPage> {
   bool _loading = false;
   String? _selectedProductId;
+  late final bool _wasPro;
 
   static const _beneficios = [
     'Gerar recibos PDF profissionais',
@@ -28,7 +29,27 @@ class _ProPageState extends State<ProPage> {
   @override
   void initState() {
     super.initState();
+    _wasPro = EntitlementService.current.value.pro;
     BillingService.loadProducts().then((_) => mounted ? setState(() {}) : null);
+    EntitlementService.current.addListener(_onEntitlementChanged);
+  }
+
+  @override
+  void dispose() {
+    EntitlementService.current.removeListener(_onEntitlementChanged);
+    super.dispose();
+  }
+
+  /// Quando a compra completa, o purchaseStream do BillingService atualiza
+  /// o EntitlementService. Aqui escutamos a transição Free→Pro pra fechar a paywall.
+  void _onEntitlementChanged() {
+    if (!mounted || _wasPro) return;
+    if (EntitlementService.current.value.pro) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pro ativado · aproveite!')),
+      );
+      Navigator.of(context).pop();
+    }
   }
 
   Future<void> _comprar(ProductDetails product) async {
